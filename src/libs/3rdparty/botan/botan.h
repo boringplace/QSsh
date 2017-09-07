@@ -1,5 +1,5 @@
 /*
-* Botan 1.10.2 Amalgamation
+* Botan 1.10.9 Amalgamation
 * (C) 1999-2011 Jack Lloyd and others
 *
 * Distributed under the terms of the Botan license
@@ -7,8 +7,6 @@
 
 #ifndef BOTAN_AMALGAMATION_H__
 #define BOTAN_AMALGAMATION_H__
-
-#include <QtGlobal>
 
 #include <iosfwd>
 #include <map>
@@ -20,17 +18,27 @@
 #include <vector>
 #include <utility>
 
+/*
+* This file was automatically generated Thu Sep  7 23:20:28 2017 UTC by
+* sin@base.darkmastersin.net running './configure.py --gen-amalgamation'
+*
+* Target
+*  - Compiler: g++ -m64 -O3 -finline-functions 
+*  - Arch: x86_64/x86_64
+*  - OS: linux
+*/
+
 #define BOTAN_VERSION_MAJOR 1
 #define BOTAN_VERSION_MINOR 10
-#define BOTAN_VERSION_PATCH 2
+#define BOTAN_VERSION_PATCH 9
 #define BOTAN_VERSION_DATESTAMP 0
 
-#define BOTAN_VERSION_VC_REVISION "mtn:2bf8ad2c501213efb4cf9b219330b87666988e91"
+#define BOTAN_VERSION_VC_REVISION "unknown"
 
 #define BOTAN_DISTRIBUTION_INFO "unspecified"
 
 #ifndef BOTAN_DLL
-#define BOTAN_DLL Q_DECL_IMPORT
+  #define BOTAN_DLL __attribute__((visibility("default")))
 #endif
 
 /* Chunk sizes */
@@ -39,7 +47,7 @@
 #define BOTAN_BLOCK_CIPHER_PAR_MULT 4
 
 /* BigInt toggles */
-#define BOTAN_MP_WORD_BITS 32
+#define BOTAN_MP_WORD_BITS 64
 #define BOTAN_KARAT_MUL_THRESHOLD 32
 #define BOTAN_KARAT_SQR_THRESHOLD 32
 
@@ -47,6 +55,13 @@
 #define BOTAN_PUBLIC_KEY_STRONG_CHECKS_ON_LOAD 1
 #define BOTAN_PRIVATE_KEY_STRONG_CHECKS_ON_LOAD 0
 #define BOTAN_PRIVATE_KEY_STRONG_CHECKS_ON_GENERATE 1
+
+/*
+* RNGs will automatically poll the system for additional
+* seed material after producing this many bytes of output.
+*/
+#define BOTAN_RNG_MAX_OUTPUT_BEFORE_RESEED 512
+#define BOTAN_RNG_RESEED_POLL_BITS 128
 
 /* Should we use GCC-style inline assembler? */
 #if !defined(BOTAN_USE_GCC_INLINE_ASM) && defined(__GNUG__)
@@ -64,6 +79,16 @@
   #define BOTAN_GCC_VERSION 0
 #endif
 
+/* Target identification and feature test macros */
+#define BOTAN_TARGET_OS_IS_LINUX
+#define BOTAN_TARGET_OS_HAS_CLOCK_GETTIME
+#define BOTAN_TARGET_OS_HAS_DLOPEN
+#define BOTAN_TARGET_OS_HAS_GETTIMEOFDAY
+#define BOTAN_TARGET_OS_HAS_GMTIME_R
+#define BOTAN_TARGET_OS_HAS_POSIX_MLOCK
+
+#define BOTAN_TARGET_ARCH_IS_X86_64
+#define BOTAN_TARGET_CPU_HAS_SSE2
 #define BOTAN_TARGET_CPU_IS_LITTLE_ENDIAN
 #define BOTAN_TARGET_CPU_IS_X86_FAMILY
 #define BOTAN_TARGET_UNALIGNED_MEMORY_ACCESS_OK 1
@@ -72,6 +97,9 @@
     defined(BOTAN_TARGET_CPU_IS_BIG_ENDIAN)
   #define BOTAN_TARGET_CPU_HAS_KNOWN_ENDIANNESS
 #endif
+
+#define BOTAN_BUILD_COMPILER_IS_GCC
+#define BOTAN_USE_STD_TR1
 
 #if defined(_MSC_VER)
   // 4250: inherits via dominance (diamond inheritence issue)
@@ -112,6 +140,7 @@
 #define BOTAN_HAS_ADLER32
 #define BOTAN_HAS_AES
 #define BOTAN_HAS_ALGORITHM_FACTORY
+#define BOTAN_HAS_ALLOC_MMAP
 #define BOTAN_HAS_ANSI_X919_MAC
 #define BOTAN_HAS_ARC4
 #define BOTAN_HAS_ASN1
@@ -147,6 +176,8 @@
 #define BOTAN_HAS_DL_GROUP
 #define BOTAN_HAS_DL_PUBLIC_KEY_FAMILY
 #define BOTAN_HAS_DSA
+#define BOTAN_HAS_DYNAMICALLY_LOADED_ENGINE
+#define BOTAN_HAS_DYNAMIC_LOADER
 #define BOTAN_HAS_EAX
 #define BOTAN_HAS_ECB
 #define BOTAN_HAS_ECC_GROUP
@@ -165,7 +196,12 @@
 #define BOTAN_HAS_EMSA_RAW
 #define BOTAN_HAS_ENGINES
 #define BOTAN_HAS_ENGINE_SIMD
+#define BOTAN_HAS_ENTROPY_SRC_DEV_RANDOM
+#define BOTAN_HAS_ENTROPY_SRC_EGD
+#define BOTAN_HAS_ENTROPY_SRC_FTW
 #define BOTAN_HAS_ENTROPY_SRC_HIGH_RESOLUTION_TIMER
+#define BOTAN_HAS_ENTROPY_SRC_RDRAND
+#define BOTAN_HAS_ENTROPY_SRC_UNIX
 #define BOTAN_HAS_FILTERS
 #define BOTAN_HAS_FPE_FE1
 #define BOTAN_HAS_GOST_28147_89
@@ -177,6 +213,7 @@
 #define BOTAN_HAS_HMAC
 #define BOTAN_HAS_HMAC_RNG
 #define BOTAN_HAS_IDEA
+#define BOTAN_HAS_IDEA_SSE2
 #define BOTAN_HAS_IF_PUBLIC_KEY_FAMILY
 #define BOTAN_HAS_KASUMI
 #define BOTAN_HAS_KDF1
@@ -195,6 +232,7 @@
 #define BOTAN_HAS_MGF1
 #define BOTAN_HAS_MISTY1
 #define BOTAN_HAS_MUTEX_NOOP
+#define BOTAN_HAS_MUTEX_PTHREAD
 #define BOTAN_HAS_MUTEX_WRAPPERS
 #define BOTAN_HAS_NOEKEON
 #define BOTAN_HAS_NOEKEON_SIMD
@@ -212,6 +250,7 @@
 #define BOTAN_HAS_PBKDF2
 #define BOTAN_HAS_PEM_CODEC
 #define BOTAN_HAS_PGPS2K
+#define BOTAN_HAS_PIPE_UNIXFD_IO
 #define BOTAN_HAS_PKCS10_REQUESTS
 #define BOTAN_HAS_PK_PADDING
 #define BOTAN_HAS_PUBLIC_KEY_CRYPTO
@@ -233,15 +272,17 @@
 #define BOTAN_HAS_SERPENT
 #define BOTAN_HAS_SERPENT_SIMD
 #define BOTAN_HAS_SHA1
+#define BOTAN_HAS_SHA1_SSE2
 #define BOTAN_HAS_SHA2_32
 #define BOTAN_HAS_SHA2_64
 #define BOTAN_HAS_SIMD_32
-#define BOTAN_HAS_SIMD_SCALAR
+#define BOTAN_HAS_SIMD_SSE2
 #define BOTAN_HAS_SKEIN_512
 #define BOTAN_HAS_SKIPJACK
 #define BOTAN_HAS_SQUARE
 #define BOTAN_HAS_SRP6
 #define BOTAN_HAS_SSL3_MAC
+#define BOTAN_HAS_SSL_TLS
 #define BOTAN_HAS_SSL_V3_PRF
 #define BOTAN_HAS_STREAM_CIPHER
 #define BOTAN_HAS_TEA
@@ -584,7 +625,7 @@ class MemoryRegion
       */
       void swap(MemoryRegion<T>& other);
 
-      virtual ~MemoryRegion() { deallocate(buf, allocated); }
+      ~MemoryRegion() { deallocate(buf, allocated); }
    protected:
       MemoryRegion() : buf(0), used(0), allocated(0), alloc(0) {}
 
@@ -5408,7 +5449,7 @@ class BOTAN_DLL CurveGFp
       /**
       * Create an uninitialized CurveGFp
       */
-      CurveGFp() {}
+      CurveGFp() : p_words(0), p_dash(0) {}
 
       /**
       * Construct the elliptic curve E: y^2 = x^3 + ax + b over GF(p)
@@ -10001,7 +10042,7 @@ class BOTAN_DLL HMAC_RNG : public RandomNumberGenerator
       bool seeded;
 
       SecureVector<byte> K, io_buffer;
-      size_t user_input_len;
+      size_t output_since_reseed;
       u32bit counter;
    };
 
@@ -10102,6 +10143,285 @@ class BOTAN_DLL Serpent : public Block_Cipher_Fixed_Params<16, 16, 32, 8>
    private:
       void key_schedule(const byte key[], size_t length);
       SecureVector<u32bit> round_key;
+   };
+
+}
+
+namespace Botan {
+
+/**
+* Protocol Constants for SSL/TLS
+*/
+enum Size_Limits {
+   MAX_PLAINTEXT_SIZE = 16*1024,
+   MAX_COMPRESSED_SIZE = MAX_PLAINTEXT_SIZE + 1024,
+   MAX_CIPHERTEXT_SIZE = MAX_COMPRESSED_SIZE + 1024
+};
+
+enum Version_Code {
+   NO_VERSION_SET     = 0x0000,
+   SSL_V3             = 0x0300,
+   TLS_V10            = 0x0301,
+   TLS_V11            = 0x0302
+};
+
+enum Connection_Side { CLIENT, SERVER };
+
+enum Record_Type {
+   CONNECTION_CLOSED  = 0,
+
+   CHANGE_CIPHER_SPEC = 20,
+   ALERT              = 21,
+   HANDSHAKE          = 22,
+   APPLICATION_DATA   = 23
+};
+
+enum Handshake_Type {
+   HELLO_REQUEST       = 0,
+   CLIENT_HELLO        = 1,
+   CLIENT_HELLO_SSLV2  = 255, // not a wire value
+   SERVER_HELLO        = 2,
+   CERTIFICATE         = 11,
+   SERVER_KEX          = 12,
+   CERTIFICATE_REQUEST = 13,
+   SERVER_HELLO_DONE   = 14,
+   CERTIFICATE_VERIFY  = 15,
+   CLIENT_KEX          = 16,
+   FINISHED            = 20,
+
+   HANDSHAKE_CCS       = 100,
+   HANDSHAKE_NONE      = 101
+};
+
+enum Alert_Level {
+   WARNING                 = 1,
+   FATAL                   = 2
+};
+
+enum Alert_Type {
+   CLOSE_NOTIFY            = 0,
+   UNEXPECTED_MESSAGE      = 10,
+   BAD_RECORD_MAC          = 20,
+   DECRYPTION_FAILED       = 21,
+   RECORD_OVERFLOW         = 22,
+   DECOMPRESSION_FAILURE   = 30,
+   HANDSHAKE_FAILURE       = 40,
+   BAD_CERTIFICATE         = 42,
+   UNSUPPORTED_CERTIFICATE = 43,
+   CERTIFICATE_REVOKED     = 44,
+   CERTIFICATE_EXPIRED     = 45,
+   CERTIFICATE_UNKNOWN     = 46,
+   ILLEGAL_PARAMETER       = 47,
+   UNKNOWN_CA              = 48,
+   ACCESS_DENIED           = 49,
+   DECODE_ERROR            = 50,
+   DECRYPT_ERROR           = 51,
+   EXPORT_RESTRICTION      = 60,
+   PROTOCOL_VERSION        = 70,
+   INSUFFICIENT_SECURITY   = 71,
+   INTERNAL_ERROR          = 80,
+   USER_CANCELED           = 90,
+   NO_RENEGOTIATION        = 100,
+
+   UNKNOWN_PSK_IDENTITY    = 115,
+
+   NO_ALERT_TYPE           = 0xFFFF
+};
+
+enum Certificate_Type {
+   RSA_CERT    = 1,
+   DSS_CERT    = 2,
+   DH_RSA_CERT = 3,
+   DH_DSS_CERT = 4
+};
+
+enum Ciphersuite_Code {
+   TLS_RSA_WITH_RC4_128_MD5                 = 0x0004,
+   TLS_RSA_WITH_RC4_128_SHA                 = 0x0005,
+
+   TLS_RSA_WITH_3DES_EDE_CBC_SHA            = 0x000A,
+   TLS_RSA_WITH_AES_128_CBC_SHA             = 0x002F,
+   TLS_RSA_WITH_AES_256_CBC_SHA             = 0x0035,
+   TLS_RSA_WITH_AES_128_CBC_SHA256          = 0x003C,
+   TLS_RSA_WITH_AES_256_CBC_SHA256          = 0x003D,
+   TLS_RSA_WITH_SEED_CBC_SHA                = 0x0096,
+
+   TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA        = 0x0013,
+   TLS_DHE_DSS_WITH_AES_128_CBC_SHA         = 0x0032,
+   TLS_DHE_DSS_WITH_AES_256_CBC_SHA         = 0x0038,
+   TLS_DHE_DSS_WITH_AES_128_CBC_SHA256      = 0x0040,
+   TLS_DHE_DSS_WITH_AES_256_CBC_SHA256      = 0x006A,
+   TLS_DHE_DSS_WITH_SEED_CBC_SHA            = 0x0099,
+
+   TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA        = 0x0016,
+   TLS_DHE_RSA_WITH_AES_128_CBC_SHA         = 0x0033,
+   TLS_DHE_RSA_WITH_AES_256_CBC_SHA         = 0x0039,
+   TLS_DHE_RSA_WITH_AES_128_CBC_SHA256      = 0x0067,
+   TLS_DHE_RSA_WITH_AES_256_CBC_SHA256      = 0x006B,
+   TLS_DHE_RSA_WITH_SEED_CBC_SHA            = 0x009A,
+
+   TLS_ECDHE_ECDSA_WITH_RC4_128_SHA         = 0xC007,
+   TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA    = 0xC008,
+   TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA     = 0xC009,
+   TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA     = 0xC00A,
+   TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256  = 0xC023,
+   TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384  = 0xC024,
+
+   TLS_ECDHE_RSA_WITH_RC4_128_SHA           = 0xC011,
+   TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA      = 0xC012,
+   TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA       = 0xC013,
+   TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA       = 0xC014,
+   TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256    = 0xC027,
+   TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384    = 0xC028,
+
+   TLS_NO_RENEGOTIATION_SCSV                = 0x00FF,
+};
+
+/*
+* Form of the ciphersuites broken down by field instead of
+* being randomly assigned codepoints.
+*/
+enum TLS_Ciphersuite_Algos {
+   TLS_ALGO_SIGNER_MASK       = 0xFF000000,
+   TLS_ALGO_SIGNER_ANON       = 0x01000000,
+   TLS_ALGO_SIGNER_RSA        = 0x02000000,
+   TLS_ALGO_SIGNER_DSA        = 0x03000000,
+   TLS_ALGO_SIGNER_ECDSA      = 0x04000000,
+
+   TLS_ALGO_KEYEXCH_MASK      = 0x00FF0000,
+   TLS_ALGO_KEYEXCH_NOKEX     = 0x00010000,
+   TLS_ALGO_KEYEXCH_RSA       = 0x00020000,
+   TLS_ALGO_KEYEXCH_DH        = 0x00030000,
+   TLS_ALGO_KEYEXCH_ECDH      = 0x00040000,
+
+   TLS_ALGO_MAC_MASK          = 0x0000FF00,
+   TLS_ALGO_MAC_MD5           = 0x00000100,
+   TLS_ALGO_MAC_SHA1          = 0x00000200,
+   TLS_ALGO_MAC_SHA256        = 0x00000300,
+   TLS_ALGO_MAC_SHA384        = 0x00000400,
+
+   TLS_ALGO_CIPHER_MASK       = 0x000000FF,
+   TLS_ALGO_CIPHER_RC4_128    = 0x00000001,
+   TLS_ALGO_CIPHER_3DES_CBC   = 0x00000002,
+   TLS_ALGO_CIPHER_AES128_CBC = 0x00000003,
+   TLS_ALGO_CIPHER_AES256_CBC = 0x00000004,
+   TLS_ALGO_CIPHER_SEED_CBC   = 0x00000005
+};
+
+enum Compression_Algo {
+   NO_COMPRESSION      = 0x00
+};
+
+enum TLS_Handshake_Extension_Type {
+   TLSEXT_SERVER_NAME_INDICATION = 0,
+   TLSEXT_MAX_FRAGMENT_LENGTH    = 1,
+   TLSEXT_CLIENT_CERT_URL        = 2,
+   TLSEXT_TRUSTED_CA_KEYS        = 3,
+   TLSEXT_TRUNCATED_HMAC         = 4,
+
+   TLSEXT_USABLE_ELLIPTIC_CURVES = 10,
+   TLSEXT_EC_POINT_FORMATS       = 11,
+
+   TLSEXT_SRP_IDENTIFIER         = 12,
+
+   TLSEXT_CERTIFICATE_TYPES      = 9,
+   TLSEXT_SESSION_TICKET         = 35
+};
+
+}
+
+
+namespace Botan {
+
+/**
+* Ciphersuite Information
+*/
+class BOTAN_DLL CipherSuite
+   {
+   public:
+      static TLS_Ciphersuite_Algos lookup_ciphersuite(u16bit suite);
+
+      std::string cipher_algo() const { return cipher; }
+      std::string mac_algo() const { return mac; }
+
+      size_t cipher_keylen() const { return cipher_key_length; }
+
+      TLS_Ciphersuite_Algos kex_type() const { return kex_algo; }
+      TLS_Ciphersuite_Algos sig_type() const { return sig_algo; }
+
+      CipherSuite(u16bit = 0);
+   private:
+      TLS_Ciphersuite_Algos kex_algo, sig_algo;
+      std::string cipher, mac;
+      size_t cipher_key_length;
+   };
+
+}
+
+
+namespace Botan {
+
+/**
+* Exception Base Class
+*/
+class BOTAN_DLL TLS_Exception : public Exception
+   {
+   public:
+      Alert_Type type() const throw() { return alert_type; }
+
+      TLS_Exception(Alert_Type type,
+                    const std::string& err_msg = "Unknown error") :
+         Exception(err_msg), alert_type(type) {}
+
+   private:
+      Alert_Type alert_type;
+   };
+
+/**
+* Unexpected_Message Exception
+*/
+struct BOTAN_DLL Unexpected_Message : public TLS_Exception
+   {
+   Unexpected_Message(const std::string& err) :
+      TLS_Exception(UNEXPECTED_MESSAGE, err) {}
+   };
+
+}
+
+
+namespace Botan {
+
+/**
+* TLS Session Keys
+*/
+class BOTAN_DLL SessionKeys
+   {
+   public:
+      SymmetricKey client_cipher_key() const;
+      SymmetricKey server_cipher_key() const;
+
+      SymmetricKey client_mac_key() const;
+      SymmetricKey server_mac_key() const;
+
+      InitializationVector client_iv() const;
+      InitializationVector server_iv() const;
+
+      SecureVector<byte> master_secret() const;
+
+      SessionKeys() {}
+      SessionKeys(const CipherSuite&, Version_Code, const MemoryRegion<byte>&,
+                  const MemoryRegion<byte>&, const MemoryRegion<byte>&);
+   private:
+      SymmetricKey ssl3_keygen(size_t, const MemoryRegion<byte>&,
+                               const MemoryRegion<byte>&,
+                               const MemoryRegion<byte>&);
+      SymmetricKey tls1_keygen(size_t, const MemoryRegion<byte>&,
+                               const MemoryRegion<byte>&,
+                               const MemoryRegion<byte>&);
+
+      SecureVector<byte> master_sec;
+      SymmetricKey c_cipher, s_cipher, c_mac, s_mac;
+      InitializationVector c_iv, s_iv;
    };
 
 }
@@ -10542,155 +10862,6 @@ class BOTAN_DLL EME_PKCS1v15 : public EME
 namespace Botan {
 
 /**
-* Bit rotation left
-* @param input the input word
-* @param rot the number of bits to rotate
-* @return input rotated left by rot bits
-*/
-template<typename T> inline T rotate_left(T input, size_t rot)
-   {
-   return static_cast<T>((input << rot) | (input >> (8*sizeof(T)-rot)));;
-   }
-
-/**
-* Bit rotation right
-* @param input the input word
-* @param rot the number of bits to rotate
-* @return input rotated right by rot bits
-*/
-template<typename T> inline T rotate_right(T input, size_t rot)
-   {
-   return static_cast<T>((input >> rot) | (input << (8*sizeof(T)-rot)));
-   }
-
-}
-
-
-#if defined(BOTAN_TARGET_CPU_HAS_SSE2) && !defined(BOTAN_NO_SSE_INTRINSICS)
-  #include <emmintrin.h>
-#endif
-
-namespace Botan {
-
-/**
-* Swap a 16 bit integer
-*/
-inline u16bit reverse_bytes(u16bit val)
-   {
-   return rotate_left(val, 8);
-   }
-
-/**
-* Swap a 32 bit integer
-*/
-inline u32bit reverse_bytes(u32bit val)
-   {
-#if BOTAN_GCC_VERSION >= 430 && !defined(BOTAN_TARGET_CPU_IS_ARM_FAMILY)
-   /*
-   GCC intrinsic added in 4.3, works for a number of CPUs
-
-   However avoid under ARM, as it branches to a function in libgcc
-   instead of generating inline asm, so slower even than the generic
-   rotate version below.
-   */
-   return __builtin_bswap32(val);
-
-#elif BOTAN_USE_GCC_INLINE_ASM && defined(BOTAN_TARGET_CPU_IS_X86_FAMILY)
-
-   // GCC-style inline assembly for x86 or x86-64
-   asm("bswapl %0" : "=r" (val) : "0" (val));
-   return val;
-
-#elif BOTAN_USE_GCC_INLINE_ASM && defined(BOTAN_TARGET_CPU_IS_ARM_FAMILY)
-
-   asm ("eor r3, %1, %1, ror #16\n\t"
-        "bic r3, r3, #0x00FF0000\n\t"
-        "mov %0, %1, ror #8\n\t"
-        "eor %0, %0, r3, lsr #8"
-        : "=r" (val)
-        : "0" (val)
-        : "r3", "cc");
-
-   return val;
-
-#else
-
-   // Generic implementation
-   return (rotate_right(val, 8) & 0xFF00FF00) |
-          (rotate_left (val, 8) & 0x00FF00FF);
-
-#endif
-   }
-
-/**
-* Swap a 64 bit integer
-*/
-inline u64bit reverse_bytes(u64bit val)
-   {
-#if BOTAN_GCC_VERSION >= 430
-
-   // GCC intrinsic added in 4.3, works for a number of CPUs
-   return __builtin_bswap64(val);
-
-#elif BOTAN_USE_GCC_INLINE_ASM && defined(BOTAN_TARGET_ARCH_IS_X86_64)
-   // GCC-style inline assembly for x86-64
-   asm("bswapq %0" : "=r" (val) : "0" (val));
-   return val;
-
-#else
-   /* Generic implementation. Defined in terms of 32-bit bswap so any
-    * optimizations in that version can help here (particularly
-    * useful for 32-bit x86).
-    */
-
-   u32bit hi = static_cast<u32bit>(val >> 32);
-   u32bit lo = static_cast<u32bit>(val);
-
-   hi = reverse_bytes(hi);
-   lo = reverse_bytes(lo);
-
-   return (static_cast<u64bit>(lo) << 32) | hi;
-#endif
-   }
-
-/**
-* Swap 4 Ts in an array
-*/
-template<typename T>
-inline void bswap_4(T x[4])
-   {
-   x[0] = reverse_bytes(x[0]);
-   x[1] = reverse_bytes(x[1]);
-   x[2] = reverse_bytes(x[2]);
-   x[3] = reverse_bytes(x[3]);
-   }
-
-#if defined(BOTAN_TARGET_CPU_HAS_SSE2) && !defined(BOTAN_NO_SSE_INTRINSICS)
-
-/**
-* Swap 4 u32bits in an array using SSE2 shuffle instructions
-*/
-template<>
-inline void bswap_4(u32bit x[4])
-   {
-   __m128i T = _mm_loadu_si128(reinterpret_cast<const __m128i*>(x));
-
-   T = _mm_shufflehi_epi16(T, _MM_SHUFFLE(2, 3, 0, 1));
-   T = _mm_shufflelo_epi16(T, _MM_SHUFFLE(2, 3, 0, 1));
-
-   T =  _mm_or_si128(_mm_srli_epi16(T, 8), _mm_slli_epi16(T, 8));
-
-   _mm_storeu_si128(reinterpret_cast<__m128i*>(x), T);
-   }
-
-#endif
-
-}
-
-
-namespace Botan {
-
-/**
 * MD5
 */
 class BOTAN_DLL MD5 : public MDx_HashFunction
@@ -10899,6 +11070,157 @@ byte BOTAN_DLL char2digit(char c);
 char BOTAN_DLL digit2char(byte b);
 
 }
+
+}
+
+
+namespace Botan {
+
+/**
+* A queue that knows how to zeroize itself
+*/
+class BOTAN_DLL SecureQueue : public Fanout_Filter, public DataSource
+   {
+   public:
+      std::string name() const { return "Queue"; }
+
+      void write(const byte[], size_t);
+
+      size_t read(byte[], size_t);
+      size_t peek(byte[], size_t, size_t = 0) const;
+
+      bool end_of_data() const;
+
+      /**
+      * @return number of bytes available in the queue
+      */
+      size_t size() const;
+
+      bool attachable() { return false; }
+
+      /**
+      * SecureQueue assignment
+      * @param other the queue to copy
+      */
+      SecureQueue& operator=(const SecureQueue& other);
+
+      /**
+      * SecureQueue default constructor (creates empty queue)
+      */
+      SecureQueue();
+
+      /**
+      * SecureQueue copy constructor
+      * @param other the queue to copy
+      */
+      SecureQueue(const SecureQueue& other);
+
+      ~SecureQueue() { destroy(); }
+   private:
+      void destroy();
+      class SecureQueueNode* head;
+      class SecureQueueNode* tail;
+   };
+
+}
+
+
+#if defined(BOTAN_USE_STD_TR1)
+
+#if defined(BOTAN_BUILD_COMPILER_IS_MSVC)
+    #include <functional>
+#else
+    #include <tr1/functional>
+#endif
+
+#elif defined(BOTAN_USE_BOOST_TR1)
+  #include <boost/tr1/functional.hpp>
+#else
+  #error "No TR1 library defined for use"
+#endif
+
+namespace Botan {
+
+using namespace std::tr1::placeholders;
+
+/**
+* TLS Record Writer
+*/
+class BOTAN_DLL Record_Writer
+   {
+   public:
+      void send(byte type, const byte input[], size_t length);
+      void send(byte type, byte val) { send(type, &val, 1); }
+
+      void flush();
+
+      void alert(Alert_Level, Alert_Type);
+
+      void set_keys(const CipherSuite&, const SessionKeys&, Connection_Side);
+
+      void set_version(Version_Code);
+
+      void reset();
+
+      Record_Writer(std::tr1::function<void (const byte[], size_t)> output_fn);
+
+      ~Record_Writer() { delete mac; }
+   private:
+      void send_record(byte type, const byte input[], size_t length);
+      void send_record(byte type, byte major, byte minor,
+                       const byte input[], size_t length);
+
+      std::tr1::function<void (const byte[], size_t)> output_fn;
+      Pipe cipher;
+      MessageAuthenticationCode* mac;
+
+      SecureVector<byte> buffer;
+      size_t buf_pos;
+
+      size_t block_size, mac_size, iv_size;
+
+      u64bit seq_no;
+      byte major, minor, buf_type;
+   };
+
+/**
+* TLS Record Reader
+*/
+class BOTAN_DLL Record_Reader
+   {
+   public:
+      void add_input(const byte input[], size_t input_size);
+
+      /**
+      * @param msg_type (output variable)
+      * @param buffer (output variable)
+      * @return Number of bytes still needed (minimum), or 0 if success
+      */
+      size_t get_record(byte& msg_type,
+                        MemoryRegion<byte>& buffer);
+
+      SecureVector<byte> get_record(byte& msg_type);
+
+      void set_keys(const CipherSuite& suite,
+                    const SessionKeys& keys,
+                    Connection_Side side);
+
+      void set_version(Version_Code version);
+
+      void reset();
+
+      Record_Reader() { mac = 0; reset(); }
+
+      ~Record_Reader() { delete mac; }
+   private:
+      SecureQueue input_queue;
+
+      Pipe cipher;
+      MessageAuthenticationCode* mac;
+      size_t block_size, mac_size, iv_size;
+      u64bit seq_no;
+      byte major, minor;
+   };
 
 }
 
@@ -11508,6 +11830,37 @@ BOTAN_DLL SecureVector<byte> PGP_decode(
 BOTAN_DLL SecureVector<byte> PGP_decode(
    DataSource& source,
    std::string& label);
+
+}
+
+
+namespace Botan {
+
+/**
+* Bit rotation left
+* @param input the input word
+* @param rot the number of bits to rotate
+* @return input rotated left by rot bits
+*/
+template<typename T> inline T rotate_left(T input, size_t rot)
+   {
+   if(rot == 0)
+      return input;
+   return static_cast<T>((input << rot) | (input >> (8*sizeof(T)-rot)));;
+   }
+
+/**
+* Bit rotation right
+* @param input the input word
+* @param rot the number of bits to rotate
+* @return input rotated right by rot bits
+*/
+template<typename T> inline T rotate_right(T input, size_t rot)
+   {
+   if(rot == 0)
+      return input;
+   return static_cast<T>((input >> rot) | (input << (8*sizeof(T)-rot)));
+   }
 
 }
 
@@ -12378,6 +12731,60 @@ class BOTAN_DLL X942_PRF : public KDF
 namespace Botan {
 
 /**
+* IDEA
+*/
+class BOTAN_DLL IDEA : public Block_Cipher_Fixed_Params<8, 16>
+   {
+   public:
+      void encrypt_n(const byte in[], byte out[], size_t blocks) const;
+      void decrypt_n(const byte in[], byte out[], size_t blocks) const;
+
+      void clear() { zeroise(EK); zeroise(DK); }
+      std::string name() const { return "IDEA"; }
+      BlockCipher* clone() const { return new IDEA; }
+
+      IDEA() : EK(52), DK(52) {}
+   protected:
+      /**
+      * @return const reference to encryption subkeys
+      */
+      const SecureVector<u16bit>& get_EK() const { return EK; }
+
+      /**
+      * @return const reference to decryption subkeys
+      */
+      const SecureVector<u16bit>& get_DK() const { return DK; }
+
+   private:
+      void key_schedule(const byte[], size_t);
+      SecureVector<u16bit> EK, DK;
+   };
+
+}
+
+
+namespace Botan {
+
+/**
+* IDEA in SSE2
+*/
+class BOTAN_DLL IDEA_SSE2 : public IDEA
+   {
+   public:
+      size_t parallelism() const { return 8; }
+
+      void encrypt_n(const byte in[], byte out[], size_t blocks) const;
+      void decrypt_n(const byte in[], byte out[], size_t blocks) const;
+
+      BlockCipher* clone() const { return new IDEA_SSE2; }
+   };
+
+}
+
+
+namespace Botan {
+
+/**
 * TEA
 */
 class BOTAN_DLL TEA : public Block_Cipher_Fixed_Params<8, 16>
@@ -12533,6 +12940,23 @@ class BOTAN_DLL ARC4 : public StreamCipher
 namespace Botan {
 
 /**
+* SHA-160 using SSE2 for the message expansion
+*/
+class BOTAN_DLL SHA_160_SSE2 : public SHA_160
+   {
+   public:
+      HashFunction* clone() const { return new SHA_160_SSE2; }
+      SHA_160_SSE2() : SHA_160(0) {} // no W needed
+   private:
+      void compress_n(const byte[], size_t blocks);
+   };
+
+}
+
+
+namespace Botan {
+
+/**
 * Rabin-Williams Public Key
 */
 class BOTAN_DLL RW_PublicKey : public virtual IF_Scheme_PublicKey
@@ -12618,6 +13042,134 @@ class BOTAN_DLL RW_Verification_Operation : public PK_Ops::Verification
       const BigInt& n;
       Fixed_Exponent_Power_Mod powermod_e_n;
    };
+
+}
+
+
+#if defined(BOTAN_TARGET_CPU_HAS_SSE2) && !defined(BOTAN_NO_SSE_INTRINSICS)
+  #include <emmintrin.h>
+#endif
+
+namespace Botan {
+
+/**
+* Swap a 16 bit integer
+*/
+inline u16bit reverse_bytes(u16bit val)
+   {
+   return rotate_left(val, 8);
+   }
+
+/**
+* Swap a 32 bit integer
+*/
+inline u32bit reverse_bytes(u32bit val)
+   {
+#if BOTAN_GCC_VERSION >= 430 && !defined(BOTAN_TARGET_CPU_IS_ARM_FAMILY)
+   /*
+   GCC intrinsic added in 4.3, works for a number of CPUs
+
+   However avoid under ARM, as it branches to a function in libgcc
+   instead of generating inline asm, so slower even than the generic
+   rotate version below.
+   */
+   return __builtin_bswap32(val);
+
+#elif BOTAN_USE_GCC_INLINE_ASM && defined(BOTAN_TARGET_CPU_IS_X86_FAMILY)
+
+   // GCC-style inline assembly for x86 or x86-64
+   asm("bswapl %0" : "=r" (val) : "0" (val));
+   return val;
+
+#elif BOTAN_USE_GCC_INLINE_ASM && defined(BOTAN_TARGET_CPU_IS_ARM_FAMILY)
+
+   asm ("eor r3, %1, %1, ror #16\n\t"
+        "bic r3, r3, #0x00FF0000\n\t"
+        "mov %0, %1, ror #8\n\t"
+        "eor %0, %0, r3, lsr #8"
+        : "=r" (val)
+        : "0" (val)
+        : "r3", "cc");
+
+   return val;
+
+#elif defined(_MSC_VER) && defined(BOTAN_TARGET_ARCH_IS_X86_32)
+
+   // Visual C++ inline asm for 32-bit x86, by Yves Jerschow
+   __asm mov eax, val;
+   __asm bswap eax;
+
+#else
+
+   // Generic implementation
+   return (rotate_right(val, 8) & 0xFF00FF00) |
+          (rotate_left (val, 8) & 0x00FF00FF);
+
+#endif
+   }
+
+/**
+* Swap a 64 bit integer
+*/
+inline u64bit reverse_bytes(u64bit val)
+   {
+#if BOTAN_GCC_VERSION >= 430
+
+   // GCC intrinsic added in 4.3, works for a number of CPUs
+   return __builtin_bswap64(val);
+
+#elif BOTAN_USE_GCC_INLINE_ASM && defined(BOTAN_TARGET_ARCH_IS_X86_64)
+   // GCC-style inline assembly for x86-64
+   asm("bswapq %0" : "=r" (val) : "0" (val));
+   return val;
+
+#else
+   /* Generic implementation. Defined in terms of 32-bit bswap so any
+    * optimizations in that version can help here (particularly
+    * useful for 32-bit x86).
+    */
+
+   u32bit hi = static_cast<u32bit>(val >> 32);
+   u32bit lo = static_cast<u32bit>(val);
+
+   hi = reverse_bytes(hi);
+   lo = reverse_bytes(lo);
+
+   return (static_cast<u64bit>(lo) << 32) | hi;
+#endif
+   }
+
+/**
+* Swap 4 Ts in an array
+*/
+template<typename T>
+inline void bswap_4(T x[4])
+   {
+   x[0] = reverse_bytes(x[0]);
+   x[1] = reverse_bytes(x[1]);
+   x[2] = reverse_bytes(x[2]);
+   x[3] = reverse_bytes(x[3]);
+   }
+
+#if defined(BOTAN_TARGET_CPU_HAS_SSE2) && !defined(BOTAN_NO_SSE_INTRINSICS)
+
+/**
+* Swap 4 u32bits in an array using SSE2 shuffle instructions
+*/
+template<>
+inline void bswap_4(u32bit x[4])
+   {
+   __m128i T = _mm_loadu_si128(reinterpret_cast<const __m128i*>(x));
+
+   T = _mm_shufflehi_epi16(T, _MM_SHUFFLE(2, 3, 0, 1));
+   T = _mm_shufflelo_epi16(T, _MM_SHUFFLE(2, 3, 0, 1));
+
+   T =  _mm_or_si128(_mm_srli_epi16(T, 8), _mm_slli_epi16(T, 8));
+
+   _mm_storeu_si128(reinterpret_cast<__m128i*>(x), T);
+   }
+
+#endif
 
 }
 
@@ -13454,6 +14006,8 @@ namespace Botan {
 class BOTAN_DLL PK_Encryptor_Filter : public Filter
    {
    public:
+      std::string name() const { return "PK Encryptor"; }
+
       void write(const byte[], size_t);
       void end_msg();
       PK_Encryptor_Filter(PK_Encryptor* c,
@@ -13472,6 +14026,8 @@ class BOTAN_DLL PK_Encryptor_Filter : public Filter
 class BOTAN_DLL PK_Decryptor_Filter : public Filter
    {
    public:
+      std::string name() const { return "PK Decryptor"; }
+
       void write(const byte[], size_t);
       void end_msg();
       PK_Decryptor_Filter(PK_Decryptor* c) : cipher(c) {}
@@ -13487,6 +14043,8 @@ class BOTAN_DLL PK_Decryptor_Filter : public Filter
 class BOTAN_DLL PK_Signer_Filter : public Filter
    {
    public:
+      std::string name() const { return "PK Signer"; }
+
       void write(const byte[], size_t);
       void end_msg();
 
@@ -13506,6 +14064,8 @@ class BOTAN_DLL PK_Signer_Filter : public Filter
 class BOTAN_DLL PK_Verifier_Filter : public Filter
    {
    public:
+      std::string name() const { return "PK Verifier"; }
+
       void write(const byte[], size_t);
       void end_msg();
 
@@ -13545,57 +14105,6 @@ class BOTAN_DLL XTEA_SIMD : public XTEA
 namespace Botan {
 
 /**
-* A queue that knows how to zeroize itself
-*/
-class BOTAN_DLL SecureQueue : public Fanout_Filter, public DataSource
-   {
-   public:
-      std::string name() const { return "Queue"; }
-
-      void write(const byte[], size_t);
-
-      size_t read(byte[], size_t);
-      size_t peek(byte[], size_t, size_t = 0) const;
-
-      bool end_of_data() const;
-
-      /**
-      * @return number of bytes available in the queue
-      */
-      size_t size() const;
-
-      bool attachable() { return false; }
-
-      /**
-      * SecureQueue assignment
-      * @param other the queue to copy
-      */
-      SecureQueue& operator=(const SecureQueue& other);
-
-      /**
-      * SecureQueue default constructor (creates empty queue)
-      */
-      SecureQueue();
-
-      /**
-      * SecureQueue copy constructor
-      * @param other the queue to copy
-      */
-      SecureQueue(const SecureQueue& other);
-
-      ~SecureQueue() { destroy(); }
-   private:
-      void destroy();
-      class SecureQueueNode* head;
-      class SecureQueueNode* tail;
-   };
-
-}
-
-
-namespace Botan {
-
-/**
 * HMAC
 */
 class BOTAN_DLL HMAC : public MessageAuthenticationCode
@@ -13609,7 +14118,8 @@ class BOTAN_DLL HMAC : public MessageAuthenticationCode
 
       Key_Length_Specification key_spec() const
          {
-         return Key_Length_Specification(0, 2*hash->hash_block_size());
+         // Absurd max length here is to support PBKDF2
+         return Key_Length_Specification(0, 512);
          }
 
       /**
@@ -13858,6 +14368,139 @@ class BOTAN_DLL ECDH_KA_Operation : public PK_Ops::Key_Agreement
       const CurveGFp& curve;
       const BigInt& cofactor;
       BigInt l_times_priv;
+   };
+
+}
+
+
+namespace Botan {
+
+/**
+* TLS Connection
+*/
+class BOTAN_DLL TLS_Connection
+   {
+   public:
+      virtual size_t read(byte[], size_t) = 0;
+      virtual void write(const byte[], size_t) = 0;
+      size_t read(byte& in) { return read(&in, 1); }
+      void write(byte out) { write(&out, 1); }
+
+      virtual std::vector<X509_Certificate> peer_cert_chain() const = 0;
+
+      virtual void close() = 0;
+
+      virtual ~TLS_Connection() {}
+   };
+
+}
+
+
+namespace Botan {
+
+/**
+* TLS Policy Base Class
+* Inherit and overload as desired to suite local policy concerns
+*/
+class BOTAN_DLL TLS_Policy
+   {
+   public:
+      std::vector<u16bit> ciphersuites() const;
+      virtual std::vector<byte> compression() const;
+
+      virtual u16bit choose_suite(const std::vector<u16bit>& client_suites,
+                                  bool rsa_ok,
+                                  bool dsa_ok) const;
+
+      virtual byte choose_compression(const std::vector<byte>& client) const;
+
+      virtual bool allow_static_rsa() const { return true; }
+      virtual bool allow_edh_rsa() const { return true; }
+      virtual bool allow_edh_dsa() const { return true; }
+      virtual bool require_client_auth() const { return false; }
+
+      virtual DL_Group dh_group() const;
+      virtual size_t rsa_export_keysize() const { return 512; }
+
+      /*
+      * @return the minimum version that we will negotiate
+      */
+      virtual Version_Code min_version() const { return TLS_V10; }
+
+      /*
+      * @return the version we would prefer to negotiate
+      */
+      virtual Version_Code pref_version() const { return TLS_V11; }
+
+      virtual bool check_cert(const std::vector<X509_Certificate>& cert_chain) const = 0;
+
+      virtual ~TLS_Policy() {}
+   private:
+      virtual std::vector<u16bit> suite_list(bool use_rsa,
+                                             bool use_edh_rsa,
+                                             bool use_edh_dsa) const;
+   };
+
+}
+
+
+namespace Botan {
+
+/**
+* TLS Server
+*/
+class BOTAN_DLL TLS_Server : public TLS_Connection
+   {
+   public:
+      size_t read(byte buf[], size_t buf_len);
+      void write(const byte buf[], size_t buf_len);
+
+      std::vector<X509_Certificate> peer_cert_chain() const;
+
+      std::string requested_hostname() const
+         { return client_requested_hostname; }
+
+      void close();
+      bool is_closed() const;
+
+      /*
+      * FIXME: support cert chains (!)
+      * FIXME: support anonymous servers
+      */
+      TLS_Server(std::tr1::function<size_t (byte[], size_t)> input_fn,
+                 std::tr1::function<void (const byte[], size_t)> output_fn,
+                 const TLS_Policy& policy,
+                 RandomNumberGenerator& rng,
+                 const X509_Certificate& cert,
+                 const Private_Key& cert_key);
+
+      ~TLS_Server();
+   private:
+      void close(Alert_Level, Alert_Type);
+
+      void do_handshake();
+      void state_machine();
+      void read_handshake(byte, const MemoryRegion<byte>&);
+
+      void process_handshake_msg(Handshake_Type, const MemoryRegion<byte>&);
+
+      std::tr1::function<size_t (byte[], size_t)> input_fn;
+
+      const TLS_Policy& policy;
+      RandomNumberGenerator& rng;
+
+      Record_Writer writer;
+      Record_Reader reader;
+
+      // FIXME: rename to match TLS_Client
+      std::vector<X509_Certificate> cert_chain, peer_certs;
+      Private_Key* private_key;
+
+      class Handshake_State* state;
+      SecureVector<byte> session_id;
+      SecureQueue read_buf;
+      std::string client_requested_hostname;
+      bool active;
    };
 
 }
@@ -14801,41 +15444,6 @@ inline PK_Key_Agreement* get_pk_kas(const PK_Key_Agreement_Key& key,
    {
    return new PK_Key_Agreement(key, kdf);
    }
-
-}
-
-
-namespace Botan {
-
-/**
-* IDEA
-*/
-class BOTAN_DLL IDEA : public Block_Cipher_Fixed_Params<8, 16>
-   {
-   public:
-      void encrypt_n(const byte in[], byte out[], size_t blocks) const;
-      void decrypt_n(const byte in[], byte out[], size_t blocks) const;
-
-      void clear() { zeroise(EK); zeroise(DK); }
-      std::string name() const { return "IDEA"; }
-      BlockCipher* clone() const { return new IDEA; }
-
-      IDEA() : EK(52), DK(52) {}
-   protected:
-      /**
-      * @return const reference to encryption subkeys
-      */
-      const SecureVector<u16bit>& get_EK() const { return EK; }
-
-      /**
-      * @return const reference to decryption subkeys
-      */
-      const SecureVector<u16bit>& get_DK() const { return DK; }
-
-   private:
-      void key_schedule(const byte[], size_t);
-      SecureVector<u16bit> EK, DK;
-   };
 
 }
 
@@ -16180,6 +16788,63 @@ class BOTAN_DLL ANSI_X919_MAC : public MessageAuthenticationCode
       BlockCipher* d;
       SecureVector<byte> state;
       size_t position;
+   };
+
+}
+
+
+namespace Botan {
+
+/**
+* SSL/TLS Client
+*/
+class BOTAN_DLL TLS_Client : public TLS_Connection
+   {
+   public:
+      size_t read(byte buf[], size_t buf_len);
+      void write(const byte buf[], size_t buf_len);
+
+      void close();
+      bool is_closed() const;
+
+      std::vector<X509_Certificate> peer_cert_chain() const;
+
+      void add_client_cert(const X509_Certificate& cert,
+                           Private_Key* cert_key);
+
+      TLS_Client(std::tr1::function<size_t (byte[], size_t)> input_fn,
+                 std::tr1::function<void (const byte[], size_t)> output_fn,
+                 const TLS_Policy& policy,
+                 RandomNumberGenerator& rng);
+
+      ~TLS_Client();
+   private:
+      void close(Alert_Level, Alert_Type);
+
+      size_t get_pending_socket_input(byte output[], size_t length);
+
+      void initialize();
+      void do_handshake();
+
+      void state_machine();
+      void read_handshake(byte, const MemoryRegion<byte>&);
+      void process_handshake_msg(Handshake_Type, const MemoryRegion<byte>&);
+
+      std::tr1::function<size_t (byte[], size_t)> input_fn;
+
+      const TLS_Policy& policy;
+      RandomNumberGenerator& rng;
+
+      Record_Writer writer;
+      Record_Reader reader;
+
+      std::vector<X509_Certificate> peer_certs;
+      std::vector<std::pair<X509_Certificate, Private_Key*> > certs;
+
+      class Handshake_State* state;
+      SecureVector<byte> session_id;
+      SecureQueue read_buf;
+      bool active;
    };
 
 }
