@@ -32,7 +32,16 @@ SOURCES = $$PWD/sshsendfacility.cpp \
     $$PWD/sshremoteprocessrunner.cpp \
     $$PWD/sshconnectionmanager.cpp \
     $$PWD/sshkeypasswordretriever.cpp \
-    $$PWD/sftpfilesystemmodel.cpp
+    $$PWD/sftpfilesystemmodel.cpp \
+    $$PWD/sshkeycreationdialog.cpp \
+    $$PWD/sshinit.cpp \
+    $$PWD/sshdirecttcpiptunnel.cpp \
+    $$PWD/sshlogging.cpp \
+    $$PWD/sshhostkeydatabase.cpp \
+    $$PWD/sshtcpipforwardserver.cpp \
+    $$PWD/sshtcpiptunnel.cpp \
+    $$PWD/sshforwardedtcpiptunnel.cpp \
+    $$PWD/sshagent.cpp
 
 HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshremoteprocess.h \
@@ -64,6 +73,20 @@ HEADERS = $$PWD/sshsendfacility_p.h \
     $$PWD/sshpseudoterminal.h \
     $$PWD/sshkeypasswordretriever_p.h \
     $$PWD/sftpfilesystemmodel.h \
-    $$PWD/ssh_global.h
+    $$PWD/sshkeycreationdialog.h \
+    $$PWD/ssh_global.h \
+    $$PWD/sshdirecttcpiptunnel_p.h \
+    $$PWD/sshinit_p.h \
+    $$PWD/sshdirecttcpiptunnel.h \
+    $$PWD/sshlogging_p.h \
+    $$PWD/sshhostkeydatabase.h \
+    $$PWD/sshtcpipforwardserver.h \
+    $$PWD/sshtcpipforwardserver_p.h \
+    $$PWD/sshtcpiptunnel_p.h \
+    $$PWD/sshforwardedtcpiptunnel.h \
+    $$PWD/sshforwardedtcpiptunnel_p.h \
+    $$PWD/sshagent_p.h
+
+FORMS = $$PWD/sshkeycreationdialog.ui
 
 
