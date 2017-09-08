@@ -101,9 +101,9 @@ void SshRestarter::loadSettings()
         qInfo().nospace() << n << "/pass: " << params.password;
         if(identity_file.exists()) {
             qInfo().nospace() << n << "/identity: " << params.privateKeyFile;
-            params.authenticationType = QSsh::SshConnectionParameters::AuthenticationByKey;
+            params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
         } else {
-            params.authenticationType = QSsh::SshConnectionParameters::AuthenticationByPassword;
+            params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePassword;
         }
         qInfo().nospace() << n << "/command: " << command;
 
