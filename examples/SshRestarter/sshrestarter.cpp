@@ -23,7 +23,7 @@
 #include <QFileInfo>
 
 SshRestarter::SshRestarter(const QString &config) :
-    QWidget(), m_config(config)
+    QWidget()
 {
     connect_mapper = new QSignalMapper(this);
     connect(connect_mapper, SIGNAL(mapped(int)), this, SLOT(command(int)));
@@ -37,7 +37,8 @@ SshRestarter::SshRestarter(const QString &config) :
     disconnect_mapper = new QSignalMapper(this);
     connect(disconnect_mapper, SIGNAL(mapped(int)), this, SLOT(disconnect(int)));
 
-    loadSettings();
+    readSettings(config);
+    loadConfiguration();
     logger = new SshLogger(m_logfile);
 
     QVBoxLayout *vbox = new QVBoxLayout;
@@ -48,7 +49,7 @@ SshRestarter::SshRestarter(const QString &config) :
     setWindowTitle(QString("%1 (%2 hosts)").arg(tr("SSH Restarter")).arg(m_connections.size()));
 }
 
-void SshRestarter::loadSettings()
+void SshRestarter::loadConfiguration()
 {
     QSettings settings(m_config, QSettings::IniFormat);
 
@@ -88,24 +89,27 @@ void SshRestarter::loadSettings()
         params.host = settings.value("host", def_host.toLatin1()).toString();
         params.userName = settings.value("user", def_user).toString();
         params.password = settings.value("pass", def_pass).toString();
+        params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePassword;
         QString identity = settings.value("identity", def_identity).toString();
+        if (identity.startsWith ("~/"))
+            identity.replace (0, 1, QDir::homePath());
         QFile identity_file(identity);
-        if(identity_file.exists())
-            params.privateKeyFile = identity;
         params.timeout = settings.value("timeout", 30).toInt();
         params.port = settings.value("port", 22).toInt();
+        params.privateKeyFile = identity;
         QString command = settings.value("command", def_command).toString();
 
+        qInfo().nospace() << "\n[host" << n << "]";
         qInfo().nospace() << n << "/host: " << params.host;
         qInfo().nospace() << n << "/user: " << params.userName;
         qInfo().nospace() << n << "/pass: " << params.password;
-        if(identity_file.exists()) {
-            qInfo().nospace() << n << "/identity: " << params.privateKeyFile;
-            params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
-        } else {
-            params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePassword;
-        }
         qInfo().nospace() << n << "/command: " << command;
+        if(identity_file.exists()) {
+            params.authenticationType = QSsh::SshConnectionParameters::AuthenticationTypePublicKey;
+            qInfo().nospace() << n << "/identity: " << params.privateKeyFile;
+        }
+        qInfo().nospace() << n << "/port: " << params.port;
+        qInfo().nospace() << n << "/timeout: " << params.timeout;
 
         QSsh::SshConnection* p_connection = new QSsh::SshConnection(params, this);
         m_connections.append(p_connection);
@@ -122,7 +126,7 @@ void SshRestarter::loadSettings()
     settings.endArray();
 }
 
-void SshRestarter::saveSettings()
+void SshRestarter::saveConfiguration()
 {
     QSettings settings(m_config, QSettings::IniFormat);
 
@@ -133,7 +137,9 @@ void SshRestarter::saveSettings()
         settings.setValue("host", m_connections.at(i)->connectionParameters().host);
         settings.setValue("user", m_connections.at(i)->connectionParameters().userName);
         settings.setValue("pass", m_connections.at(i)->connectionParameters().password);
-        settings.setValue("identity", m_connections.at(i)->connectionParameters().privateKeyFile);
+        QString identity = m_connections.at(i)->connectionParameters().privateKeyFile;
+        if (!identity.isEmpty())
+            settings.setValue("identity", identity);
     }
     settings.endArray();
 }
@@ -256,3 +262,61 @@ void SshRestarter::disconnect(int i)
     logger->append(QString("disconnected: %2").arg(host));
 }
 
+void SshRestarter::writeSettings()
+{
+    QSettings settings("SarFSC", "SshRestarter");
+
+    settings.beginGroup("Window");
+    settings.setValue("size", size());
+    settings.setValue("pos", pos());
+    settings.endGroup();
+
+    settings.beginGroup("Configuration");
+    settings.setValue("config", m_config);
+    settings.endGroup();
+}
+
+void SshRestarter::readSettings(const QString &config)
+{
+    QSettings settings("SarFSC", "SshRestarter");
+
+    settings.beginGroup("Window");
+    resize(settings.value("size", QSize(400, 400)).toSize());
+    move(settings.value("pos", QPoint(200, 200)).toPoint());
+    settings.endGroup();
+
+    settings.beginGroup("Configuration");
+    QString def_config = QApplication::applicationDirPath() + "/config.ini";
+    m_config = settings.value("config", def_config).toString();
+    if (!config.isEmpty())
+        m_config = config;
+
+    settings.endGroup();
+}
+
+void SshRestarter::closeEvent(QCloseEvent *event)
+{
+    if (reallyQuit()) {
+        writeSettings();
+        saveConfiguration();
+        event->accept();
+    } else {
+        event->ignore();
+    }
+}
+
+bool SshRestarter::reallyQuit()
+{
+    QMessageBox msgBox(QMessageBox::Question,
+                       this->windowTitle() + tr(": Confirmation"),
+                       tr("Do you really want to quit?"),
+                       QMessageBox::Ok | QMessageBox::Cancel,
+                       this, Qt::Dialog);
+
+    //msgBox.setDefaultButton(QMessageBox::Cancel);
+
+    int result = msgBox.exec();
+
+    qDebug() << "The return value is: " << result;
+    return result == QMessageBox::Ok;
+}

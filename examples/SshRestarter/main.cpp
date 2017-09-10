@@ -25,7 +25,7 @@ void showSyntax(int);
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    QString cfg = QApplication::applicationDirPath() + "/config.ini";
+    QString cfg;
 
     if (argc > 2) {
         showSyntax(1);
@@ -33,11 +33,6 @@ int main(int argc, char *argv[])
 
     if (argc == 2) {
         cfg = argv[1];
-        QFile fcfg(cfg);
-        if(!fcfg.exists()) {
-            std::cerr << "Config file: " << cfg.toUtf8().constData() << " not exists." << std::endl;
-            showSyntax(2);
-        }
     }
 
     SshRestarter *restarter = new SshRestarter(cfg);

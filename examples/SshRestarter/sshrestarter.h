@@ -49,6 +49,8 @@ private slots:
     void disconnect(int i);
     void error(int i);
 
+    void closeEvent(QCloseEvent *event);
+
 private:
     QString m_config;
     QString m_logfile;
@@ -67,9 +69,14 @@ private:
     QSignalMapper* error_mapper;
     QSignalMapper* disconnect_mapper;
 
-    void loadSettings();
-    void saveSettings();
+    void loadConfiguration();
+    void saveConfiguration();
     QHBoxLayout *updateUI();
+
+    void readSettings(const QString &config);
+    void writeSettings();
+
+    bool reallyQuit();
 
     QGroupBox *createGroup(QString host, int n, QSignalMapper* mapper);
 };
