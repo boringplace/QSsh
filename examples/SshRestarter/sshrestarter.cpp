@@ -202,7 +202,8 @@ void SshRestarter::restart(int i)
     if (conn->state() != State::Connected) {
         if (conn->state() != State::Connecting) {
             qInfo() << "try to connect";
-            qInfo() << " last error string" << conn->errorString();
+            if (!conn->errorString().isEmpty())
+                qInfo() << " connect error string:" << conn->errorString();
             conn->connectToHost();
         } else {
             qInfo() << "connect already in process";
@@ -221,7 +222,8 @@ void SshRestarter::command(int i)
 
     QString command = m_commands.at(i);
 
-    qInfo() << " command error string" << conn->errorString();
+    if (!conn->errorString().isEmpty())
+        qInfo() << " command error string:" << conn->errorString();
 
     logger->append(QString("%1: %2").arg(host).arg(command));
     if (conn->state() == State::Connected) {
