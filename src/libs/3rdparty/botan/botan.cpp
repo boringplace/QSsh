@@ -1,5 +1,5 @@
 /*
-* Botan 1.10.9 Amalgamation
+* Botan 1.10.16 Amalgamation
 * (C) 1999-2011 Jack Lloyd and others
 *
 * Distributed under the terms of the Botan license
@@ -1377,6 +1377,32 @@ class Noop_Mutex_Factory : public Mutex_Factory
 
 namespace Botan {
 
+class Integer_Overflow_Detected : public Exception
+   {
+   public:
+      Integer_Overflow_Detected(const std::string& file, int line) :
+         Exception("Integer overflow detected at " + file + ":" + to_string(line))
+         {}
+   };
+
+inline size_t checked_add(size_t x, size_t y, const char* file, int line)
+   {
+   // TODO: use __builtin_x_overflow on GCC and Clang
+   size_t z = x + y;
+   if(z < x)
+      {
+      throw Integer_Overflow_Detected(file, line);
+      }
+   return z;
+   }
+
+#define BOTAN_CHECKED_ADD(x,y) checked_add(x,y,__FILE__,__LINE__)
+
+}
+
+
+namespace Botan {
+
 /**
 * Round up
 * @param n an integer
@@ -1645,6 +1671,7 @@ class DataSource_Command : public DataSource
    public:
       size_t read(byte[], size_t);
       size_t peek(byte[], size_t, size_t) const;
+      bool check_available(size_t n);
       bool end_of_data() const;
       std::string id() const;
 
@@ -1686,6 +1713,124 @@ class MemoryMapping_Allocator : public Pooling_Allocator
       void* alloc_block(size_t);
       void dealloc_block(void*, size_t);
    };
+
+}
+
+
+namespace Botan {
+
+namespace CT {
+
+/*
+* T should be an unsigned machine integer type
+* Expand to a mask used for other operations
+* @param in an integer
+* @return If n is zero, returns zero. Otherwise
+* returns a T with all bits set for use as a mask with
+* select.
+*/
+template<typename T>
+inline T expand_mask(T x)
+   {
+   T r = x;
+   // First fold r down to a single bit
+   for(size_t i = 1; i != sizeof(T)*8; i *= 2)
+      r |= r >> i;
+   r &= 1;
+   r = ~(r - 1);
+   return r;
+   }
+
+template<typename T>
+inline T select(T mask, T from0, T from1)
+   {
+   return (from0 & mask) | (from1 & ~mask);
+   }
+
+template<typename PredT, typename ValT>
+inline ValT val_or_zero(PredT pred_val, ValT val)
+   {
+   return select(CT::expand_mask<ValT>(pred_val), val, static_cast<ValT>(0));
+   }
+
+template<typename T>
+inline T is_zero(T x)
+   {
+   return ~expand_mask(x);
+   }
+
+template<typename T>
+inline T is_equal(T x, T y)
+   {
+   return is_zero(x ^ y);
+   }
+
+template<typename T>
+inline T is_less(T x, T y)
+   {
+   /*
+   This expands to a constant time sequence with GCC 5.2.0 on x86-64
+   but something more complicated may be needed for portable const time.
+   */
+   return expand_mask<T>(x < y);
+   }
+
+template<typename T>
+inline T is_lte(T x, T y)
+   {
+   return expand_mask<T>(x <= y);
+   }
+
+template<typename T>
+inline void conditional_copy_mem(T value,
+                                 T* to,
+                                 const T* from0,
+                                 const T* from1,
+                                 size_t elems)
+   {
+   const T mask = CT::expand_mask(value);
+
+   for(size_t i = 0; i != elems; ++i)
+      {
+      to[i] = CT::select(mask, from0[i], from1[i]);
+      }
+   }
+
+template<typename T>
+inline void cond_zero_mem(T cond,
+                          T* array,
+                          size_t elems)
+   {
+   const T mask = CT::expand_mask(cond);
+   const T zero(0);
+
+   for(size_t i = 0; i != elems; ++i)
+      {
+      array[i] = CT::select(mask, zero, array[i]);
+      }
+   }
+
+template<typename T>
+inline T expand_top_bit(T a)
+   {
+   return expand_mask<T>(a >> (sizeof(T)*8-1));
+   }
+
+template<typename T>
+inline T max(T a, T b)
+   {
+   const T a_larger = b - a; // negative if a is larger
+   return select(expand_top_bit(a), a, b);
+   }
+
+template<typename T>
+inline T min(T a, T b)
+   {
+   const T a_larger = b - a; // negative if a is larger
+   return select(expand_top_bit(b), b, a);
+   }
+
+}
 
 }
 
@@ -1784,6 +1929,32 @@ namespace Botan {
 const size_t MP_WORD_BITS = BOTAN_MP_WORD_BITS;
 
 extern "C" {
+
+/*
+* If cond == 0, does nothing.
+* If cond > 0, swaps x[0:size] with y[0:size]
+* Runs in constant time
+*/
+void bigint_cnd_swap(word cnd, word x[], word y[], size_t size);
+
+/*
+* If cond > 0 adds x[0:size] to y[0:size] and returns carry
+* Runs in constant time
+*/
+word bigint_cnd_add(word cnd, word x[], const word y[], size_t size);
+
+/*
+* If cond > 0 subs x[0:size] to y[0:size] and returns borrow
+* Runs in constant time
+*/
+word bigint_cnd_sub(word cnd, word x[], const word y[], size_t size);
+
+/*
+* 2s complement absolute value
+* If cond > 0 sets x to ~x + 1
+* Runs in constant time
+*/
+void bigint_cnd_abs(word cnd, word x[], size_t size);
 
 /*
 * Addition/Subtraction Operations
@@ -3534,8 +3705,7 @@ void* MemoryMapping_Allocator::alloc_block(size_t n)
             * will continue to exist until the mmap is unmapped from
             * our address space upon deallocation (or process exit).
             */
-            if(fd != -1 && ::close(fd) == -1)
-               throw MemoryMapping_Failed("Could not close file");
+            fd != -1 && ::close(fd);
             }
       private:
          int fd;
@@ -3710,8 +3880,10 @@ Pooling_Allocator::Pooling_Allocator(Mutex* m) : mutex(m)
 Pooling_Allocator::~Pooling_Allocator()
    {
    delete mutex;
+   #if 0
    if(blocks.size())
       throw Invalid_State("Pooling_Allocator: Never released memory");
+   #endif
    }
 
 /*
@@ -5148,7 +5320,9 @@ size_t find_eoc(DataSource* ber)
       size_t item_size = decode_length(&source, length_size);
       source.discard_next(item_size);
 
-      length += item_size + length_size + tag_size;
+      length = BOTAN_CHECKED_ADD(length, item_size);
+      length = BOTAN_CHECKED_ADD(length, tag_size);
+      length = BOTAN_CHECKED_ADD(length, length_size);
 
       if(type_tag == EOC && class_tag == UNIVERSAL)
          break;
@@ -5228,7 +5402,10 @@ BER_Object BER_Decoder::get_next_object()
    if(next.type_tag == NO_OBJECT)
       return next;
 
-   size_t length = decode_length(source);
+   const size_t length = decode_length(source);
+   if(!source->check_available(length))
+      throw BER_Decoding_Error("Value truncated");
+
    next.value.resize(length);
    if(source->read(&next.value[0], length) != length)
       throw BER_Decoding_Error("Value truncated");
@@ -5480,6 +5657,8 @@ BER_Decoder& BER_Decoder::decode(MemoryRegion<byte>& buffer,
       buffer = obj.value;
    else
       {
+      if(obj.value.empty())
+         throw BER_Decoding_Error("Invalid BIT STRING");
       if(obj.value[0] >= 8)
          throw BER_Decoding_Error("Bad number of unused bits in BIT STRING");
 
@@ -22630,6 +22809,11 @@ size_t DataSource_Command::peek(byte[], size_t, size_t) const
    throw Stream_IO_Error("Cannot peek/seek on a command pipe");
    }
 
+bool DataSource_Command::check_available(size_t)
+   {
+   throw Stream_IO_Error("Cannot check available bytes on a pipe");
+   }
+
 /**
 * Check if we reached EOF
 */
@@ -23257,6 +23441,11 @@ void Base64_Decoder::write(const byte input[], size_t length)
    while(length)
       {
       size_t to_copy = std::min<size_t>(length, in.size() - position);
+      if(to_copy == 0)
+         {
+         in.resize(in.size()*2);
+         out.resize(out.size()*2);
+         }
       copy_mem(&in[position], input, to_copy);
       position += to_copy;
 
@@ -23636,6 +23825,11 @@ DataSource_Memory::DataSource_Memory(const std::string& in) :
    offset = 0;
    }
 
+bool DataSource_Memory::check_available(size_t n)
+   {
+   return (n <= (source.size() - offset));
+   }
+
 /*
 * Read from a stream
 */
@@ -23648,6 +23842,15 @@ size_t DataSource_Stream::read(byte out[], size_t length)
    size_t got = source.gcount();
    total_read += got;
    return got;
+   }
+
+bool DataSource_Stream::check_available(size_t n)
+   {
+   const std::streampos orig_pos = source.tellg();
+   source.seekg(0, std::ios::end);
+   const size_t avail = source.tellg() - orig_pos;
+   source.seekg(orig_pos);
+   return (avail >= n);
    }
 
 /*
@@ -26099,6 +26302,16 @@ size_t Pipe::remaining(message_id msg) const
    return outputs->remaining(get_message_no("remaining", msg));
    }
 
+bool Pipe::check_available(size_t n)
+   {
+   return (n <= remaining(DEFAULT_MESSAGE));
+   }
+
+bool Pipe::check_available_msg(size_t n, message_id msg)
+   {
+   return (n <= remaining(msg));
+   }
+
 /*
 * Peek at some data in the pipe
 */
@@ -26531,6 +26744,8 @@ void BMW_512_compress(u64bit H[16], const u64bit M[16], u64bit Q[32])
    Q[14] = S4(Q[30]) + H[15];
    Q[15] = S0(Q[31]) + H[ 0];
 
+   static const u64bit x55 = 0x0555555555555555;
+
    for(size_t i = 16; i != 16 + EXPAND_1_ROUNDS; ++i)
       {
       Q[i] = S1(Q[i-16]) + S2(Q[i-15]) + S3(Q[i-14]) + S0(Q[i-13]) +
@@ -26540,7 +26755,7 @@ void BMW_512_compress(u64bit H[16], const u64bit M[16], u64bit Q[32])
              ((rotate_left(M[(i-16) % 16], ((i-16)%16) + 1) +
                rotate_left(M[(i-13) % 16], ((i-13)%16) + 1) -
                rotate_left(M[(i- 6) % 16], ((i-6)%16) + 1) +
-               (0x0555555555555555 * i)) ^ H[(i-16+7)%16]);
+               (x55 * i)) ^ H[(i-16+7)%16]);
       }
 
    for(size_t i = 16 + EXPAND_1_ROUNDS; i != 32; ++i)
@@ -26556,7 +26771,7 @@ void BMW_512_compress(u64bit H[16], const u64bit M[16], u64bit Q[32])
              ((rotate_left(M[(i-16) % 16], ((i-16)%16 + 1)) +
                rotate_left(M[(i-13) % 16], ((i-13)%16 + 1)) -
                rotate_left(M[(i- 6) % 16], ((i-6)%16 + 1)) +
-               (0x0555555555555555 * i)) ^ H[(i-16+7)%16]);
+               (x55 * i)) ^ H[(i-16+7)%16]);
       }
 
    u64bit XL = Q[16] ^ Q[17] ^ Q[18] ^ Q[19] ^
@@ -26837,8 +27052,11 @@ void GOST_34_11::compress_n(const byte input[], size_t blocks)
 
          // P transformation
          for(size_t k = 0; k != 4; ++k)
+            {
+            const uint64_t UVk = U[k] ^ V[k];
             for(size_t l = 0; l != 8; ++l)
-               key[4*l+k] = get_byte(l, U[k]) ^ get_byte(l, V[k]);
+               key[4*l+k] = get_byte(l, UVk);
+            }
 
          cipher.set_key(key, 32);
          cipher.encrypt(&hash[8*j], S + 8*j);
@@ -34744,7 +34962,7 @@ u32bit BigInt::to_u32bit() const
    {
    if(is_negative())
       throw Encoding_Error("BigInt::to_u32bit: Number is negative");
-   if(bits() >= 32)
+   if(bits() > 32)
       throw Encoding_Error("BigInt::to_u32bit: Number is too big to convert");
 
    u32bit out = 0;
@@ -35058,6 +35276,10 @@ PointGFp::PointGFp(const CurveGFp& curve) :
 PointGFp::PointGFp(const CurveGFp& curve, const BigInt& x, const BigInt& y) :
    curve(curve), ws(2 * (curve.get_p_words() + 2))
    {
+   if(x <= 0 || x >= curve.get_p())
+      throw Invalid_Argument("Invalid PointGFp x");
+   if(y <= 0 || y >= curve.get_p())
+      throw Invalid_Argument("Invalid PointGFp y");
    coord_x = monty_mult(x, curve.get_r2());
    coord_y = monty_mult(y, curve.get_r2());
    coord_z = monty_mult(1, curve.get_r2());
@@ -35101,15 +35323,18 @@ void PointGFp::monty_sqr(BigInt& z, const BigInt& x) const
       }
 
    const BigInt& p = curve.get_p();
-   const size_t p_size = curve.get_p_words();
    const word p_dash = curve.get_p_dash();
+   const size_t p_size = curve.get_p_words();
+
+   const size_t x_sw = x.sig_words();
+   BOTAN_ASSERT(x_sw <= p_size, "x value in range");
 
    SecureVector<word>& z_reg = z.get_reg();
    z_reg.resize(2*p_size+1);
    zeroise(z_reg);
 
    bigint_monty_sqr(&z_reg[0], z_reg.size(),
-                    x.data(), x.size(), x.sig_words(),
+                    x.data(), x.size(), x_sw,
                     p.data(), p_size, p_dash,
                     &ws[0]);
    }
@@ -35647,6 +35872,76 @@ PointGFp OS2ECP(const byte data[], size_t data_len,
 namespace Botan {
 
 extern "C" {
+
+/*
+* If cond == 0, does nothing.
+* If cond > 0, swaps x[0:size] with y[0:size]
+* Runs in constant time
+*/
+void bigint_cnd_swap(word cnd, word x[], word y[], size_t size)
+   {
+   const word mask = CT::expand_mask(cnd);
+
+   for(size_t i = 0; i != size; ++i)
+      {
+      word a = x[i];
+      word b = y[i];
+      x[i] = CT::select(mask, b, a);
+      y[i] = CT::select(mask, a, b);
+      }
+   }
+
+/*
+* If cond > 0 adds x[0:size] to y[0:size] and returns carry
+* Runs in constant time
+*/
+word bigint_cnd_add(word cnd, word x[], const word y[], size_t size)
+   {
+   const word mask = CT::expand_mask(cnd);
+
+   word carry = 0;
+   for(size_t i = 0; i != size; ++i)
+      {
+      /*
+      Here we are relying on asm version of word_add being
+      a single addcl or equivalent. Fix this.
+      */
+      const word z = word_add(x[i], y[i], &carry);
+      x[i] = CT::select(mask, z, x[i]);
+      }
+
+   return carry & mask;
+   }
+
+/*
+* If cond > 0 subs x[0:size] to y[0:size] and returns borrow
+* Runs in constant time
+*/
+word bigint_cnd_sub(word cnd, word x[], const word y[], size_t size)
+   {
+   const word mask = CT::expand_mask(cnd);
+
+   word carry = 0;
+   for(size_t i = 0; i != size; ++i)
+      {
+      const word z = word_sub(x[i], y[i], &carry);
+      x[i] = CT::select(mask, z, x[i]);
+      }
+
+   return carry & mask;
+   }
+
+void bigint_cnd_abs(word cnd, word x[], size_t size)
+   {
+   const word mask = CT::expand_mask(cnd);
+
+   word carry = mask & 1;
+   for(size_t i = 0; i != size; ++i)
+      {
+      const word z = word_add(~x[i], 0, &carry);
+      x[i] = CT::select(mask, z, x[i]);
+      }
+   }
 
 /*
 * Two Operand Addition, No Carry
@@ -36980,6 +37275,8 @@ void bigint_mul(word z[], size_t z_size, word workspace[],
                 const word x[], size_t x_size, size_t x_sw,
                 const word y[], size_t y_size, size_t y_sw)
    {
+   BOTAN_ASSERT(z_size > x_sw && z_size > y_sw && z_size - x_sw >= y_sw, "Sufficient output size");
+
    if(x_sw == 1)
       {
       bigint_linmul3(z, y, y_sw, x[0]);
@@ -37034,6 +37331,8 @@ void bigint_mul(word z[], size_t z_size, word workspace[],
 void bigint_sqr(word z[], size_t z_size, word workspace[],
                 const word x[], size_t x_size, size_t x_sw)
    {
+   BOTAN_ASSERT(z_size/2 >= x_sw, "Sufficient output size");
+
    if(x_sw == 1)
       {
       bigint_linmul3(z, x, x_sw, x[0]);
@@ -38019,6 +38318,117 @@ BigInt lcm(const BigInt& a, const BigInt& b)
    return ((a * b) / gcd(a, b));
    }
 
+namespace {
+
+BigInt ct_inverse_mod_odd_modulus(const BigInt& n, const BigInt& mod)
+   {
+   if(n.is_negative() || mod.is_negative())
+      throw Invalid_Argument("ct_inverse_mod_odd_modulus: arguments must be non-negative");
+   if(mod < 3 || mod.is_even())
+      throw Invalid_Argument("Bad modulus to ct_inverse_mod_odd_modulus");
+
+   /*
+   This uses a modular inversion algorithm designed by Niels Möller
+   and implemented in Nettle. The same algorithm was later also
+   adapted to GMP in mpn_sec_invert.
+
+   It can be easily implemented in a way that does not depend on
+   secret branches or memory lookups, providing resistance against
+   some forms of side channel attack.
+
+   There is also a description of the algorithm in Appendix 5 of "Fast
+   Software Polynomial Multiplication on ARM Processors using the NEON Engine"
+   by Danilo Câmara, Conrado P. L. Gouvêa, Julio López, and Ricardo
+   Dahab in LNCS 8182
+      http://conradoplg.cryptoland.net/files/2010/12/mocrysen13.pdf
+
+   Thanks to Niels for creating the algorithm, explaining some things
+   about it, and the reference to the paper.
+   */
+
+   // todo allow this to be pre-calculated and passed in as arg
+   BigInt mp1o2 = (mod + 1) >> 1;
+
+   const size_t mod_words = mod.sig_words();
+
+   BigInt a = n;
+   BigInt b = mod;
+   BigInt u = 1, v = 0;
+
+   a.grow_to(mod_words);
+   u.grow_to(mod_words);
+   v.grow_to(mod_words);
+   mp1o2.grow_to(mod_words);
+
+   SecureVector<word>& a_w = a.get_reg();
+   SecureVector<word>& b_w = b.get_reg();
+   SecureVector<word>& u_w = u.get_reg();
+   SecureVector<word>& v_w = v.get_reg();
+
+   // Only n.bits() + mod.bits() iterations are required, but avoid leaking the size of n
+   size_t bits = 2 * mod.bits();
+
+   while(bits--)
+      {
+#if 1
+      const word odd = a.is_odd();
+      a -= odd * b;
+      const word underflow = a.is_negative();
+      b += a * underflow;
+      a.set_sign(BigInt::Positive);
+
+      a >>= 1;
+
+      if(underflow)
+         {
+         std::swap(u, v);
+         }
+
+      u -= odd * v;
+      u += u.is_negative() * mod;
+
+      const word odd_u = u.is_odd();
+
+      u >>= 1;
+      u += mp1o2 * odd_u;
+#else
+      const word odd_a = a_w[0] & 1;
+
+      //if(odd_a) a -= b
+      word underflow = bigint_cnd_sub(odd_a, a_w.begin(), b_w.begin(), mod_words);
+
+      //if(underflow) { b -= a; a = abs(a); swap(u, v); }
+      bigint_cnd_add(underflow, b_w.begin(), a_w.begin(), mod_words);
+      bigint_cnd_abs(underflow, a_w.begin(), mod_words);
+      bigint_cnd_swap(underflow, u_w.begin(), v_w.begin(), mod_words);
+
+      // a >>= 1
+      bigint_shr1(a_w.begin(), mod_words, 0, 1);
+
+      //if(odd_a) u -= v;
+      word borrow = bigint_cnd_sub(odd_a, u_w.begin(), v_w.begin(), mod_words);
+
+      // if(borrow) u += p
+      bigint_cnd_add(borrow, u_w.begin(), mod.data(), mod_words);
+
+      const word odd_u = u_w[0] & 1;
+
+      // u >>= 1
+      bigint_shr1(u_w.begin(), mod_words, 0, 1);
+
+      //if(odd_u) u += mp1o2;
+      bigint_cnd_add(odd_u, u_w.begin(), mp1o2.data(), mod_words);
+#endif
+      }
+
+   if(b != 1)
+      return 0;
+
+   return v;
+   }
+
+}
+
 /*
 * Find the Modular Inverse
 */
@@ -38031,6 +38441,9 @@ BigInt inverse_mod(const BigInt& n, const BigInt& mod)
 
    if(n.is_zero() || (n.is_even() && mod.is_even()))
       return 0;
+
+   if(mod.is_odd())
+      return ct_inverse_mod_odd_modulus(n % mod, mod);
 
    BigInt x = mod, y = n, u = mod, v = n;
    BigInt A = 1, B = 0, C = 0, D = 1;
@@ -38376,7 +38789,7 @@ void Fixed_Window_Exponentiator::set_base(const BigInt& base)
    g[1] = base;
 
    for(size_t i = 2; i != g.size(); ++i)
-      g[i] = reducer.multiply(g[i-1], g[0]);
+      g[i] = reducer.multiply(g[i-1], g[1]);
    }
 
 /*
@@ -39309,10 +39722,10 @@ BigInt ressol(const BigInt& a, const BigInt& p)
          {
          q = mod_p.square(q);
          ++i;
-         }
 
-      if(s <= i)
-         return -BigInt(1);
+         if(i >= s)
+            return -BigInt(1);
+         }
 
       c = power_mod(c, BigInt(BigInt::Power2, s-i-1), p);
       r = mod_p.multiply(r, c);
@@ -39419,8 +39832,7 @@ Mutex* Pthread_Mutex_Factory::make()
 
          ~Pthread_Mutex()
             {
-            if(pthread_mutex_destroy(&mutex) != 0)
-               throw Invalid_State("~Pthread_Mutex: mutex is still locked");
+            pthread_mutex_destroy(&mutex);
             }
       private:
          pthread_mutex_t mutex;
@@ -40614,20 +41026,31 @@ SecureVector<byte> EME_PKCS1v15::pad(const byte in[], size_t inlen,
 SecureVector<byte> EME_PKCS1v15::unpad(const byte in[], size_t inlen,
                                        size_t key_len) const
    {
-   if(inlen != key_len / 8 || inlen < 10 || in[0] != 0x02)
-      throw Decoding_Error("PKCS1::unpad");
 
-   size_t seperator = 0;
-   for(size_t j = 0; j != inlen; ++j)
-      if(in[j] == 0)
-         {
-         seperator = j;
-         break;
-         }
-   if(seperator < 9)
-      throw Decoding_Error("PKCS1::unpad");
+   byte bad_input_m = 0;
+   byte seen_zero_m = 0;
+   size_t delim_idx = 0;
 
-   return SecureVector<byte>(in + seperator + 1, inlen - seperator - 1);
+   bad_input_m |= ~CT::is_equal<byte>(in[0], 2);
+
+   for(size_t i = 1; i < inlen; ++i)
+      {
+      const byte is_zero_m = CT::is_zero<byte>(in[i]);
+
+      delim_idx += CT::select<byte>(~seen_zero_m, 1, 0);
+
+      bad_input_m |= is_zero_m & CT::expand_mask<byte>(i < 9);
+      seen_zero_m |= is_zero_m;
+      }
+
+   bad_input_m |= ~seen_zero_m;
+   bad_input_m |= CT::is_less<size_t>(delim_idx, 8);
+
+   SecureVector<byte> output(&in[delim_idx + 1], inlen - (delim_idx + 1));
+
+   if(bad_input_m)
+      throw Decoding_Error("EME_PKCS1v15::unpad invalid ciphertext");
+   return output;
    }
 
 /*
@@ -47608,8 +48031,8 @@ std::vector<u16bit> TLS_Policy::suite_list(bool use_rsa,
       suites.push_back(TLS_RSA_WITH_AES_128_CBC_SHA);
       suites.push_back(TLS_RSA_WITH_3DES_EDE_CBC_SHA);
       suites.push_back(TLS_RSA_WITH_SEED_CBC_SHA);
-      suites.push_back(TLS_RSA_WITH_RC4_128_SHA);
-      suites.push_back(TLS_RSA_WITH_RC4_128_MD5);
+      //suites.push_back(TLS_RSA_WITH_RC4_128_SHA);
+      //suites.push_back(TLS_RSA_WITH_RC4_128_MD5);
       }
 
    if(suites.size() == 0)
@@ -50783,6 +51206,8 @@ bool x500_name_cmp(const std::string& name1, const std::string& name2)
 
          if(p1 == name1.end() && p2 == name2.end())
             return true;
+         if(p1 == name1.end() || p2 == name2.end())
+            return false;
          }
 
       if(!Charset::caseless_cmp(*p1, *p2))

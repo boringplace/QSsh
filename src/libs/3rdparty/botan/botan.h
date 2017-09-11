@@ -1,5 +1,5 @@
 /*
-* Botan 1.10.9 Amalgamation
+* Botan 1.10.16 Amalgamation
 * (C) 1999-2011 Jack Lloyd and others
 *
 * Distributed under the terms of the Botan license
@@ -19,7 +19,7 @@
 #include <utility>
 
 /*
-* This file was automatically generated Thu Sep  7 23:20:28 2017 UTC by
+* This file was automatically generated Mon Sep 11 03:43:56 2017 UTC by
 * sin@base.darkmastersin.net running './configure.py --gen-amalgamation'
 *
 * Target
@@ -30,7 +30,7 @@
 
 #define BOTAN_VERSION_MAJOR 1
 #define BOTAN_VERSION_MINOR 10
-#define BOTAN_VERSION_PATCH 9
+#define BOTAN_VERSION_PATCH 16
 #define BOTAN_VERSION_DATESTAMP 0
 
 #define BOTAN_VERSION_VC_REVISION "unknown"
@@ -3824,6 +3824,8 @@ class BOTAN_DLL DataSource
       */
       virtual std::string id() const { return ""; }
 
+      virtual bool check_available(size_t n) = 0;
+
       /**
       * Read one byte.
       * @param out the byte to read to
@@ -3862,6 +3864,7 @@ class BOTAN_DLL DataSource_Memory : public DataSource
    public:
       size_t read(byte[], size_t);
       size_t peek(byte[], size_t, size_t) const;
+      bool check_available(size_t n);
       bool end_of_data() const;
 
       /**
@@ -3895,6 +3898,7 @@ class BOTAN_DLL DataSource_Stream : public DataSource
    public:
       size_t read(byte[], size_t);
       size_t peek(byte[], size_t, size_t) const;
+      bool check_available(size_t n);
       bool end_of_data() const;
       std::string id() const;
 
@@ -4252,6 +4256,9 @@ class BOTAN_DLL Pipe : public DataSource
       */
       size_t peek(byte& output, size_t offset,
                   message_id msg = DEFAULT_MESSAGE) const;
+
+      bool check_available(size_t n);
+      bool check_available_msg(size_t n, message_id msg);
 
       /**
       * @return currently set default message
@@ -11097,6 +11104,8 @@ class BOTAN_DLL SecureQueue : public Fanout_Filter, public DataSource
       size_t size() const;
 
       bool attachable() { return false; }
+
+      bool check_available(size_t n) { return n <= size(); }
 
       /**
       * SecureQueue assignment
