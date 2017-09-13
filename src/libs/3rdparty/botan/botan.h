@@ -19,13 +19,13 @@
 #include <utility>
 
 /*
-* This file was automatically generated Mon Sep 11 03:43:56 2017 UTC by
-* sin@base.darkmastersin.net running './configure.py --gen-amalgamation'
+* This file was automatically generated Wed Sep 13 16:44:45 2017 UTC by
+* Евгений@war running 'C:\Users\sin\Work\botan\configure.py --gen-amalgamation'
 *
 * Target
 *  - Compiler: g++ -m64 -O3 -finline-functions 
 *  - Arch: x86_64/x86_64
-*  - OS: linux
+*  - OS: windows
 */
 
 #define BOTAN_VERSION_MAJOR 1
@@ -80,14 +80,13 @@
 #endif
 
 /* Target identification and feature test macros */
-//#define BOTAN_TARGET_OS_IS_LINUX
-//#define BOTAN_TARGET_OS_HAS_CLOCK_GETTIME
-//#define BOTAN_TARGET_OS_HAS_DLOPEN
-//#define BOTAN_TARGET_OS_HAS_GETTIMEOFDAY
-//#define BOTAN_TARGET_OS_HAS_GMTIME_R
-//#define BOTAN_TARGET_OS_HAS_POSIX_MLOCK
+#define BOTAN_TARGET_OS_IS_WINDOWS
+#define BOTAN_TARGET_OS_HAS_GMTIME_S
+#define BOTAN_TARGET_OS_HAS_LOADLIBRARY
+#define BOTAN_TARGET_OS_HAS_WIN32_GET_SYSTEMTIME
+#define BOTAN_TARGET_OS_HAS_WIN32_VIRTUAL_LOCK
 
-//#define BOTAN_TARGET_ARCH_IS_X86_64
+#define BOTAN_TARGET_ARCH_IS_X86_64
 #define BOTAN_TARGET_CPU_HAS_SSE2
 #define BOTAN_TARGET_CPU_IS_LITTLE_ENDIAN
 #define BOTAN_TARGET_CPU_IS_X86_FAMILY
@@ -98,7 +97,7 @@
   #define BOTAN_TARGET_CPU_HAS_KNOWN_ENDIANNESS
 #endif
 
-//#define BOTAN_BUILD_COMPILER_IS_GCC
+#define BOTAN_BUILD_COMPILER_IS_GCC
 #define BOTAN_USE_STD_TR1
 
 #if defined(_MSC_VER)
@@ -140,7 +139,6 @@
 #define BOTAN_HAS_ADLER32
 #define BOTAN_HAS_AES
 #define BOTAN_HAS_ALGORITHM_FACTORY
-#define BOTAN_HAS_ALLOC_MMAP
 #define BOTAN_HAS_ANSI_X919_MAC
 #define BOTAN_HAS_ARC4
 #define BOTAN_HAS_ASN1
@@ -176,8 +174,8 @@
 #define BOTAN_HAS_DL_GROUP
 #define BOTAN_HAS_DL_PUBLIC_KEY_FAMILY
 #define BOTAN_HAS_DSA
-//#define BOTAN_HAS_DYNAMICALLY_LOADED_ENGINE
-//#define BOTAN_HAS_DYNAMIC_LOADER
+#define BOTAN_HAS_DYNAMICALLY_LOADED_ENGINE
+#define BOTAN_HAS_DYNAMIC_LOADER
 #define BOTAN_HAS_EAX
 #define BOTAN_HAS_ECB
 #define BOTAN_HAS_ECC_GROUP
@@ -196,12 +194,10 @@
 #define BOTAN_HAS_EMSA_RAW
 #define BOTAN_HAS_ENGINES
 #define BOTAN_HAS_ENGINE_SIMD
-#define BOTAN_HAS_ENTROPY_SRC_DEV_RANDOM
-#define BOTAN_HAS_ENTROPY_SRC_EGD
-#define BOTAN_HAS_ENTROPY_SRC_FTW
+#define BOTAN_HAS_ENTROPY_SRC_CAPI
 #define BOTAN_HAS_ENTROPY_SRC_HIGH_RESOLUTION_TIMER
 #define BOTAN_HAS_ENTROPY_SRC_RDRAND
-#define BOTAN_HAS_ENTROPY_SRC_UNIX
+#define BOTAN_HAS_ENTROPY_SRC_WIN32
 #define BOTAN_HAS_FILTERS
 #define BOTAN_HAS_FPE_FE1
 #define BOTAN_HAS_GOST_28147_89
@@ -232,7 +228,7 @@
 #define BOTAN_HAS_MGF1
 #define BOTAN_HAS_MISTY1
 #define BOTAN_HAS_MUTEX_NOOP
-#define BOTAN_HAS_MUTEX_PTHREAD
+#define BOTAN_HAS_MUTEX_WIN32
 #define BOTAN_HAS_MUTEX_WRAPPERS
 #define BOTAN_HAS_NOEKEON
 #define BOTAN_HAS_NOEKEON_SIMD
@@ -250,7 +246,6 @@
 #define BOTAN_HAS_PBKDF2
 #define BOTAN_HAS_PEM_CODEC
 #define BOTAN_HAS_PGPS2K
-#define BOTAN_HAS_PIPE_UNIXFD_IO
 #define BOTAN_HAS_PKCS10_REQUESTS
 #define BOTAN_HAS_PK_PADDING
 #define BOTAN_HAS_PUBLIC_KEY_CRYPTO
@@ -4365,27 +4360,6 @@ BOTAN_DLL std::istream& operator>>(std::istream& in, Pipe& pipe);
 }
 
 #if defined(BOTAN_HAS_PIPE_UNIXFD_IO)
-
-namespace Botan {
-
-/**
-* Stream output operator; dumps the results from pipe's default
-* message to the output stream.
-* @param out file descriptor for an open output stream
-* @param pipe the pipe
-*/
-int BOTAN_DLL operator<<(int out, Pipe& pipe);
-
-/**
-* File descriptor input operator; dumps the remaining bytes of input
-* to the (assumed open) pipe message.
-* @param in file descriptor for an open input stream
-* @param pipe the pipe
-*/
-int BOTAN_DLL operator>>(int in, Pipe& pipe);
-
-}
-
 #endif
 
 
@@ -12949,23 +12923,6 @@ class BOTAN_DLL ARC4 : public StreamCipher
 namespace Botan {
 
 /**
-* SHA-160 using SSE2 for the message expansion
-*/
-class BOTAN_DLL SHA_160_SSE2 : public SHA_160
-   {
-   public:
-      HashFunction* clone() const { return new SHA_160_SSE2; }
-      SHA_160_SSE2() : SHA_160(0) {} // no W needed
-   private:
-      void compress_n(const byte[], size_t blocks);
-   };
-
-}
-
-
-namespace Botan {
-
-/**
 * Rabin-Williams Public Key
 */
 class BOTAN_DLL RW_PublicKey : public virtual IF_Scheme_PublicKey
@@ -14229,6 +14186,23 @@ class BOTAN_DLL Lion : public BlockCipher
       HashFunction* hash;
       StreamCipher* cipher;
       SecureVector<byte> key1, key2;
+   };
+
+}
+
+
+namespace Botan {
+
+/**
+* SHA-160 using SSE2 for the message expansion
+*/
+class BOTAN_DLL SHA_160_SSE2 : public SHA_160
+   {
+   public:
+      HashFunction* clone() const { return new SHA_160_SSE2; }
+      SHA_160_SSE2() : SHA_160(0) {} // no W needed
+   private:
+      void compress_n(const byte[], size_t blocks);
    };
 
 }

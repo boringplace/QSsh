@@ -16,6 +16,21 @@
 namespace Botan {
 
 /**
+* Win32 Entropy Source
+*/
+class Win32_EntropySource : public EntropySource
+   {
+   public:
+      std::string name() const { return "Win32 Statistics"; }
+      void poll(Entropy_Accumulator& accum);
+   };
+
+}
+
+
+namespace Botan {
+
+/**
 * Represents a DLL or shared object
 */
 class Dynamically_Loaded_Library
@@ -792,26 +807,6 @@ class Handshake_State
 namespace Botan {
 
 /**
-* Engine for implementations that use some kind of SIMD
-*/
-class SIMD_Engine : public Engine
-   {
-   public:
-      std::string provider_name() const { return "simd"; }
-
-      BlockCipher* find_block_cipher(const SCAN_Name&,
-                                     Algorithm_Factory&) const;
-
-      HashFunction* find_hash(const SCAN_Name& request,
-                              Algorithm_Factory&) const;
-   };
-
-}
-
-
-namespace Botan {
-
-/**
 * Helper class for decoding TLS protocol messages
 */
 class TLS_Data_Reader
@@ -978,28 +973,6 @@ void append_tls_length_value(MemoryRegion<byte>& buf,
    {
    append_tls_length_value(buf, &vals[0], vals.size(), tag_size);
    }
-
-}
-
-
-namespace Botan {
-
-/**
-* File Tree Walking Entropy Source
-*/
-class FTW_EntropySource : public EntropySource
-   {
-   public:
-      std::string name() const { return "Proc Walker"; }
-
-      void poll(Entropy_Accumulator& accum);
-
-      FTW_EntropySource(const std::string& root_dir);
-      ~FTW_EntropySource();
-   private:
-      std::string path;
-      class File_Descriptor_Source* dir;
-   };
 
 }
 
@@ -1255,6 +1228,19 @@ class High_Resolution_Timestamp : public EntropySource
       void poll(Entropy_Accumulator& accum);
    };
 
+}
+
+
+namespace Botan {
+
+/**
+* Win32 Mutex Factory
+*/
+class Win32_Mutex_Factory : public Mutex_Factory
+   {
+   public:
+      Mutex* make();
+   };
 }
 
 
@@ -1530,49 +1516,24 @@ class Locking_Allocator : public Pooling_Allocator
 namespace Botan {
 
 /**
-* Fixed Window Exponentiator
+* Check if we can at least potentially lock memory
 */
-class Fixed_Window_Exponentiator : public Modular_Exponentiator
-   {
-   public:
-      void set_exponent(const BigInt&);
-      void set_base(const BigInt&);
-      BigInt execute() const;
-
-      Modular_Exponentiator* copy() const
-         { return new Fixed_Window_Exponentiator(*this); }
-
-      Fixed_Window_Exponentiator(const BigInt&, Power_Mod::Usage_Hints);
-   private:
-      Modular_Reducer reducer;
-      BigInt exp;
-      size_t window_bits;
-      std::vector<BigInt> g;
-      Power_Mod::Usage_Hints hints;
-   };
+bool has_mlock();
 
 /**
-* Montgomery Exponentiator
+* Lock memory into RAM if possible
+* @param addr the start of the memory block
+* @param length the length of the memory block in bytes
+* @returns true if successful, false otherwise
 */
-class Montgomery_Exponentiator : public Modular_Exponentiator
-   {
-   public:
-      void set_exponent(const BigInt&);
-      void set_base(const BigInt&);
-      BigInt execute() const;
+bool lock_mem(void* addr, size_t length);
 
-      Modular_Exponentiator* copy() const
-         { return new Montgomery_Exponentiator(*this); }
-
-      Montgomery_Exponentiator(const BigInt&, Power_Mod::Usage_Hints);
-   private:
-      BigInt exp, modulus;
-      BigInt R2, R_mod;
-      std::vector<BigInt> g;
-      word mod_prime;
-      size_t mod_words, exp_bits, window_bits;
-      Power_Mod::Usage_Hints hints;
-   };
+/**
+* Unlock memory locked with lock_mem()
+* @param addr the start of the memory block
+* @param length the length of the memory block in bytes
+*/
+void unlock_mem(void* addr, size_t length);
 
 }
 
@@ -1629,90 +1590,6 @@ inline word word_madd3(word a, word b, word c, word* d)
 #undef ASM
 
 }
-
-}
-
-
-namespace Botan {
-
-/**
-* Unix Program Info
-*/
-struct Unix_Program
-   {
-   /**
-   * @param n is the name and arguments of what we are going run
-   * @param p is the priority level (lower prio numbers get polled first)
-   */
-   Unix_Program(const char* n, size_t p)
-      { name_and_args = n; priority = p; working = true; }
-
-   /**
-   * The name and arguments for this command
-   */
-   std::string name_and_args;
-
-   /**
-   * Priority: we scan from low to high
-   */
-   size_t priority;
-
-   /**
-   * Does this source seem to be working?
-   */
-   bool working;
-   };
-
-/**
-* Command Output DataSource
-*/
-class DataSource_Command : public DataSource
-   {
-   public:
-      size_t read(byte[], size_t);
-      size_t peek(byte[], size_t, size_t) const;
-      bool check_available(size_t n);
-      bool end_of_data() const;
-      std::string id() const;
-
-      int fd() const;
-
-      DataSource_Command(const std::string&,
-                         const std::vector<std::string>& paths);
-      ~DataSource_Command();
-   private:
-      void create_pipe(const std::vector<std::string>&);
-      void shutdown_pipe();
-
-      const size_t MAX_BLOCK_USECS, KILL_WAIT;
-
-      std::vector<std::string> arg_list;
-      struct pipe_wrapper* pipe;
-   };
-
-}
-
-
-namespace Botan {
-
-/**
-* Allocator that uses memory maps backed by disk. We zeroize the map
-* upon deallocation. If swap occurs, the VM will swap to the shared
-* file backing rather than to a swap device, which means we know where
-* it is and can zap it later.
-*/
-class MemoryMapping_Allocator : public Pooling_Allocator
-   {
-   public:
-      /**
-      * @param mutex used for internal locking
-      */
-      MemoryMapping_Allocator(Mutex* mutex) : Pooling_Allocator(mutex) {}
-      std::string type() const { return "mmap"; }
-   private:
-      void* alloc_block(size_t);
-      void dealloc_block(void*, size_t);
-   };
 
 }
 
@@ -1853,21 +1730,18 @@ inline T min(T a, T b)
 namespace Botan {
 
 /**
-* Entropy source reading from kernel devices like /dev/random
+* Engine for implementations that use some kind of SIMD
 */
-class Device_EntropySource : public EntropySource
+class SIMD_Engine : public Engine
    {
    public:
-      std::string name() const { return "RNG Device Reader"; }
+      std::string provider_name() const { return "simd"; }
 
-      void poll(Entropy_Accumulator& accum);
+      BlockCipher* find_block_cipher(const SCAN_Name&,
+                                     Algorithm_Factory&) const;
 
-      Device_EntropySource(const std::vector<std::string>& fsnames);
-      ~Device_EntropySource();
-   private:
-      typedef int fd_type;
-
-      std::vector<fd_type> devices;
+      HashFunction* find_hash(const SCAN_Name& request,
+                              Algorithm_Factory&) const;
    };
 
 }
@@ -2097,12 +1971,48 @@ void bigint_sqr(word z[], size_t z_size, word workspace[],
 namespace Botan {
 
 /**
-* Pthread Mutex Factory
+* Fixed Window Exponentiator
 */
-class Pthread_Mutex_Factory : public Mutex_Factory
+class Fixed_Window_Exponentiator : public Modular_Exponentiator
    {
    public:
-      Mutex* make();
+      void set_exponent(const BigInt&);
+      void set_base(const BigInt&);
+      BigInt execute() const;
+
+      Modular_Exponentiator* copy() const
+         { return new Fixed_Window_Exponentiator(*this); }
+
+      Fixed_Window_Exponentiator(const BigInt&, Power_Mod::Usage_Hints);
+   private:
+      Modular_Reducer reducer;
+      BigInt exp;
+      size_t window_bits;
+      std::vector<BigInt> g;
+      Power_Mod::Usage_Hints hints;
+   };
+
+/**
+* Montgomery Exponentiator
+*/
+class Montgomery_Exponentiator : public Modular_Exponentiator
+   {
+   public:
+      void set_exponent(const BigInt&);
+      void set_base(const BigInt&);
+      BigInt execute() const;
+
+      Modular_Exponentiator* copy() const
+         { return new Montgomery_Exponentiator(*this); }
+
+      Montgomery_Exponentiator(const BigInt&, Power_Mod::Usage_Hints);
+   private:
+      BigInt exp, modulus;
+      BigInt R2, R_mod;
+      std::vector<BigInt> g;
+      word mod_prime;
+      size_t mod_words, exp_bits, window_bits;
+      Power_Mod::Usage_Hints hints;
    };
 
 }
@@ -2163,66 +2073,6 @@ Keyed_Filter* get_cipher_mode(const BlockCipher* block_cipher,
                               Cipher_Dir direction,
                               const std::string& mode,
                               const std::string& padding);
-
-}
-
-
-namespace Botan {
-
-/**
-* Unix Entropy Source
-*/
-class Unix_EntropySource : public EntropySource
-   {
-   public:
-      std::string name() const { return "Unix Entropy Source"; }
-
-      void poll(Entropy_Accumulator& accum);
-
-      void add_sources(const Unix_Program[], size_t);
-      Unix_EntropySource(const std::vector<std::string>& path);
-   private:
-      static std::vector<Unix_Program> get_default_sources();
-      void fast_poll(Entropy_Accumulator& accum);
-
-      const std::vector<std::string> PATH;
-      std::vector<Unix_Program> sources;
-   };
-
-}
-
-
-namespace Botan {
-
-/**
-* EGD Entropy Source
-*/
-class EGD_EntropySource : public EntropySource
-   {
-   public:
-      std::string name() const { return "EGD/PRNGD"; }
-
-      void poll(Entropy_Accumulator& accum);
-
-      EGD_EntropySource(const std::vector<std::string>&);
-      ~EGD_EntropySource();
-   private:
-      class EGD_Socket
-         {
-         public:
-            EGD_Socket(const std::string& path);
-
-            void close();
-            size_t read(byte outbuf[], size_t length);
-         private:
-            static int open_socket(const std::string& path);
-
-            std::string socket_path;
-            int m_fd; // cached fd
-         };
-
-      std::vector<EGD_Socket> sockets;
-   };
 
 }
 
@@ -2313,24 +2163,23 @@ class Alert
 namespace Botan {
 
 /**
-* Check if we can at least potentially lock memory
+* Win32 CAPI Entropy Source
 */
-bool has_mlock();
+class Win32_CAPI_EntropySource : public EntropySource
+   {
+   public:
+      std::string name() const { return "Win32 CryptoGenRandom"; }
 
-/**
-* Lock memory into RAM if possible
-* @param addr the start of the memory block
-* @param length the length of the memory block in bytes
-* @returns true if successful, false otherwise
-*/
-bool lock_mem(void* addr, size_t length);
+      void poll(Entropy_Accumulator& accum);
 
-/**
-* Unlock memory locked with lock_mem()
-* @param addr the start of the memory block
-* @param length the length of the memory block in bytes
-*/
-void unlock_mem(void* addr, size_t length);
+     /**
+     * Win32_Capi_Entropysource Constructor
+     * @param provs list of providers, separated by ':'
+     */
+      Win32_CAPI_EntropySource(const std::string& provs = "");
+   private:
+      std::vector<u64bit> prov_types;
+   };
 
 }
 
@@ -3628,149 +3477,6 @@ size_t static_provider_weight(const std::string& prov_name)
    if(prov_name == "gmp") return 1;
 
    return 0; // other/unknown
-   }
-
-}
-/*
-* Memory Mapping Allocator
-* (C) 1999-2010 Jack Lloyd
-*
-* Distributed under the terms of the Botan license
-*/
-
-#include <vector>
-#include <cstring>
-
-#include <sys/types.h>
-//#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <errno.h>
-
-#ifndef MAP_FAILED
-   #define MAP_FAILED -1
-#endif
-
-namespace Botan {
-
-namespace {
-
-/*
-* MemoryMapping_Allocator Exception
-*/
-class BOTAN_DLL MemoryMapping_Failed : public Exception
-   {
-   public:
-      MemoryMapping_Failed(const std::string& msg) :
-         Exception("MemoryMapping_Allocator: " + msg) {}
-   };
-
-}
-
-/*
-* Memory Map a File into Memory
-*/
-void* MemoryMapping_Allocator::alloc_block(size_t n)
-   {
-   class TemporaryFile
-      {
-      public:
-         int get_fd() const { return fd; }
-
-         TemporaryFile(const std::string& base)
-            {
-            const std::string mkstemp_template = base + "XXXXXX";
-
-            std::vector<char> filepath(mkstemp_template.begin(),
-                                       mkstemp_template.end());
-            filepath.push_back(0); // add terminating NULL
-
-            mode_t old_umask = ::umask(077);
-            fd = ::mkstemp(&filepath[0]);
-            ::umask(old_umask);
-
-            if(fd == -1)
-               throw MemoryMapping_Failed("Temporary file allocation failed");
-
-            if(::unlink(&filepath[0]) != 0)
-               throw MemoryMapping_Failed("Could not unlink temporary file");
-            }
-
-         ~TemporaryFile()
-            {
-            /*
-            * We can safely close here, because post-mmap the file
-            * will continue to exist until the mmap is unmapped from
-            * our address space upon deallocation (or process exit).
-            */
-            fd != -1 && ::close(fd);
-            }
-      private:
-         int fd;
-      };
-
-   TemporaryFile file("/tmp/botan_");
-
-   if(file.get_fd() == -1)
-      throw MemoryMapping_Failed("Could not create file");
-
-   std::vector<byte> zeros(4096);
-
-   size_t remaining = n;
-
-   while(remaining)
-      {
-      const size_t write_try = std::min(zeros.size(), remaining);
-
-      ssize_t wrote_got = ::write(file.get_fd(),
-                                  &zeros[0],
-                                  write_try);
-
-      if(wrote_got == -1 && errno != EINTR)
-         throw MemoryMapping_Failed("Could not write to file");
-
-      remaining -= wrote_got;
-      }
-
-#ifndef MAP_NOSYNC
-   #define MAP_NOSYNC 0
-#endif
-
-   void* ptr = ::mmap(0, n,
-                      PROT_READ | PROT_WRITE,
-                      MAP_SHARED | MAP_NOSYNC,
-                      file.get_fd(), 0);
-
-   if(ptr == static_cast<void*>(MAP_FAILED))
-      throw MemoryMapping_Failed("Could not map file");
-
-   return ptr;
-   }
-
-/*
-* Remove a Memory Mapping
-*/
-void MemoryMapping_Allocator::dealloc_block(void* ptr, size_t n)
-   {
-   if(ptr == 0)
-      return;
-
-   const byte PATTERNS[] = { 0x00, 0xF5, 0x5A, 0xAF, 0x00 };
-
-   // The char* casts are for Solaris, args are void* on most other systems
-
-   for(size_t i = 0; i != sizeof(PATTERNS); ++i)
-      {
-      std::memset(ptr, PATTERNS[i], n);
-
-      if(::msync(static_cast<char*>(ptr), n, MS_SYNC))
-         throw MemoryMapping_Failed("Sync operation failed");
-      }
-
-   if(::munmap(static_cast<char*>(ptr), n))
-      throw MemoryMapping_Failed("Could not unmap file");
    }
 
 }
@@ -22003,256 +21709,93 @@ SIMD_Engine::find_hash(const SCAN_Name& request,
 
 }
 /*
-* Reader of /dev/random and company
-* (C) 1999-2009,2013 Jack Lloyd
-*
-* Distributed under the terms of the Botan license
-*/
-
-
-#include <sys/types.h>
-//#include <sys/select.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-
-namespace Botan {
-
-namespace {
-
-int open_nonblocking(const char* pathname)
-   {
-#ifndef O_NONBLOCK
-  #define O_NONBLOCK 0
-#endif
-
-#ifndef O_NOCTTY
-  #define O_NOCTTY 0
-#endif
-
-   const int flags = O_RDONLY | O_NONBLOCK | O_NOCTTY;
-   return ::open(pathname, flags);
-   }
-
-}
-
-/**
-Device_EntropySource constructor
-Open a file descriptor to each (available) device in fsnames
-*/
-Device_EntropySource::Device_EntropySource(const std::vector<std::string>& fsnames)
-   {
-   for(size_t i = 0; i != fsnames.size(); ++i)
-      {
-      fd_type fd = open_nonblocking(fsnames[i].c_str());
-      if(fd >= 0 && fd < FD_SETSIZE)
-         devices.push_back(fd);
-      }
-   }
-
-/**
-Device_EntropySource destructor: close all open devices
-*/
-Device_EntropySource::~Device_EntropySource()
-   {
-   for(size_t i = 0; i != devices.size(); ++i)
-      ::close(devices[i]);
-   }
-
-/**
-* Gather entropy from a RNG device
-*/
-void Device_EntropySource::poll(Entropy_Accumulator& accum)
-   {
-   if(devices.empty())
-      return;
-
-   const size_t ENTROPY_BITS_PER_BYTE = 8;
-   const size_t MS_WAIT_TIME = 32;
-   const size_t READ_ATTEMPT = accum.desired_remaining_bits() / 4;
-
-   MemoryRegion<byte>& io_buffer = accum.get_io_buffer(READ_ATTEMPT);
-
-   int max_fd = devices[0];
-   fd_set read_set;
-   FD_ZERO(&read_set);
-   for(size_t i = 0; i != devices.size(); ++i)
-      {
-      FD_SET(devices[i], &read_set);
-      max_fd = std::max(devices[i], max_fd);
-      }
-
-   struct ::timeval timeout;
-
-   timeout.tv_sec = (MS_WAIT_TIME / 1000);
-   timeout.tv_usec = (MS_WAIT_TIME % 1000) * 1000;
-
-   if(::select(max_fd + 1, &read_set, 0, 0, &timeout) < 0)
-      return;
-
-   for(size_t i = 0; i != devices.size(); ++i)
-      {
-      if(FD_ISSET(devices[i], &read_set))
-         {
-         const ssize_t got = ::read(devices[i], &io_buffer[0], io_buffer.size());
-         if(got > 0)
-            accum.add(&io_buffer[0], got, ENTROPY_BITS_PER_BYTE);
-         }
-      }
-   }
-
-}
-/*
-* EGD EntropySource
+* Win32 CryptoAPI EntropySource
 * (C) 1999-2009 Jack Lloyd
 *
 * Distributed under the terms of the Botan license
 */
 
-#include <cstring>
-#include <stdexcept>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-//#include <sys/socket.h>
-//#include <sys/un.h>
-
-#ifndef PF_LOCAL
-  #define PF_LOCAL PF_UNIX
-#endif
+#include <windows.h>
+#include <wincrypt.h>
 
 namespace Botan {
 
-EGD_EntropySource::EGD_Socket::EGD_Socket(const std::string& path) :
-   socket_path(path), m_fd(-1)
+namespace {
+
+class CSP_Handle
    {
-   }
-
-/**
-* Attempt a connection to an EGD/PRNGD socket
-*/
-int EGD_EntropySource::EGD_Socket::open_socket(const std::string& path)
-   {
-   int fd = ::socket(PF_LOCAL, SOCK_STREAM, 0);
-
-   if(fd >= 0)
-      {
-      sockaddr_un addr;
-      std::memset(&addr, 0, sizeof(addr));
-      addr.sun_family = PF_LOCAL;
-
-      if(path.length() >= sizeof(addr.sun_path))
-         throw std::invalid_argument("EGD socket path is too long");
-
-      std::strncpy(addr.sun_path, path.c_str(), sizeof(addr.sun_path));
-
-      int len = sizeof(addr.sun_family) + std::strlen(addr.sun_path) + 1;
-
-      if(::connect(fd, reinterpret_cast<struct ::sockaddr*>(&addr), len) < 0)
+   public:
+      CSP_Handle(u64bit capi_provider)
          {
-         ::close(fd);
-         fd = -1;
+         valid = false;
+         DWORD prov_type = (DWORD)capi_provider;
+
+         if(CryptAcquireContext(&handle, 0, 0,
+                                prov_type, CRYPT_VERIFYCONTEXT))
+            valid = true;
          }
-      }
 
-   return fd;
-   }
+      ~CSP_Handle()
+         {
+         if(is_valid())
+            CryptReleaseContext(handle, 0);
+         }
 
-/**
-* Attempt to read entropy from EGD
-*/
-size_t EGD_EntropySource::EGD_Socket::read(byte outbuf[], size_t length)
-   {
-   if(length == 0)
-      return 0;
-
-   if(m_fd < 0)
-      {
-      m_fd = open_socket(socket_path);
-      if(m_fd < 0)
+      size_t gen_random(byte out[], size_t n) const
+         {
+         if(is_valid() && CryptGenRandom(handle, static_cast<DWORD>(n), out))
+            return n;
          return 0;
-      }
+         }
 
-   try
-      {
-      // 1 == EGD command for non-blocking read
-      byte egd_read_command[2] = {
-         1, static_cast<byte>(std::min<size_t>(length, 255)) };
+      bool is_valid() const { return valid; }
 
-      if(::write(m_fd, egd_read_command, 2) != 2)
-         throw std::runtime_error("Writing entropy read command to EGD failed");
+      HCRYPTPROV get_handle() const { return handle; }
+   private:
+      HCRYPTPROV handle;
+      bool valid;
+   };
 
-      byte out_len = 0;
-      if(::read(m_fd, &out_len, 1) != 1)
-         throw std::runtime_error("Reading response length from EGD failed");
+}
 
-      if(out_len > egd_read_command[1])
-         throw std::runtime_error("Bogus length field received from EGD");
-
-      ssize_t count = ::read(m_fd, outbuf, out_len);
-
-      if(count != out_len)
-         throw std::runtime_error("Reading entropy result from EGD failed");
-
-      return static_cast<size_t>(count);
-      }
-   catch(std::exception)
-      {
-      this->close();
-      // Will attempt to reopen next poll
-      }
-
-   return 0;
-   }
-
-void EGD_EntropySource::EGD_Socket::close()
-   {
-   if(m_fd > 0)
-      {
-      ::close(m_fd);
-      m_fd = -1;
-      }
-   }
-
-/**
-* EGD_EntropySource constructor
+/*
+* Gather Entropy from Win32 CAPI
 */
-EGD_EntropySource::EGD_EntropySource(const std::vector<std::string>& paths)
+void Win32_CAPI_EntropySource::poll(Entropy_Accumulator& accum)
    {
-   for(size_t i = 0; i != paths.size(); ++i)
-      sockets.push_back(EGD_Socket(paths[i]));
-   }
+   MemoryRegion<byte>& io_buffer = accum.get_io_buffer(32);
 
-EGD_EntropySource::~EGD_EntropySource()
-   {
-   for(size_t i = 0; i != sockets.size(); ++i)
-      sockets[i].close();
-   sockets.clear();
-   }
-
-/**
-* Gather Entropy from EGD
-*/
-void EGD_EntropySource::poll(Entropy_Accumulator& accum)
-   {
-   size_t go_get = std::min<size_t>(accum.desired_remaining_bits() / 8, 32);
-
-   MemoryRegion<byte>& io_buffer = accum.get_io_buffer(go_get);
-
-   for(size_t i = 0; i != sockets.size(); ++i)
+   for(size_t i = 0; i != prov_types.size(); ++i)
       {
-      size_t got = sockets[i].read(&io_buffer[0], io_buffer.size());
+      CSP_Handle csp(prov_types[i]);
+
+      size_t got = csp.gen_random(&io_buffer[0], io_buffer.size());
 
       if(got)
          {
-         accum.add(&io_buffer[0], got, 6);
+         accum.add(&io_buffer[0], io_buffer.size(), 6);
          break;
          }
       }
+   }
+
+/*
+* Win32_Capi_Entropysource Constructor
+*/
+Win32_CAPI_EntropySource::Win32_CAPI_EntropySource(const std::string& provs)
+   {
+   std::vector<std::string> capi_provs = split_on(provs, ':');
+
+   for(size_t i = 0; i != capi_provs.size(); ++i)
+      {
+      if(capi_provs[i] == "RSA_FULL")  prov_types.push_back(PROV_RSA_FULL);
+      if(capi_provs[i] == "INTEL_SEC") prov_types.push_back(PROV_INTEL_SEC);
+      if(capi_provs[i] == "FORTEZZA")  prov_types.push_back(PROV_FORTEZZA);
+      if(capi_provs[i] == "RNG")       prov_types.push_back(PROV_RNG);
+      }
+
+   if(prov_types.size() == 0)
+      prov_types.push_back(PROV_RSA_FULL);
    }
 
 }
@@ -22359,185 +21902,6 @@ void High_Resolution_Timestamp::poll(Entropy_Accumulator& accum)
 
 }
 /*
-* FTW EntropySource
-* (C) 1999-2008,2012 Jack Lloyd
-*
-* Distributed under the terms of the Botan license
-*/
-
-#include <cstring>
-#include <deque>
-
-#ifndef _POSIX_C_SOURCE
-  #define _POSIX_C_SOURCE 199309
-#endif
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <fcntl.h>
-
-namespace Botan {
-
-/**
-* Returns file descriptors. Until it doesn't
-*/
-class File_Descriptor_Source
-   {
-   public:
-      /**
-      * @return next file descriptor, or -1 if done
-      */
-      virtual int next_fd() = 0;
-
-      virtual ~File_Descriptor_Source() {}
-   };
-
-namespace {
-
-class Directory_Walker : public File_Descriptor_Source
-   {
-   public:
-      Directory_Walker(const std::string& root) :
-         m_cur_dir(std::make_pair<DIR*, std::string>(0, ""))
-         {
-         if(DIR* root_dir = ::opendir(root.c_str()))
-            m_cur_dir = std::make_pair(root_dir, root);
-         }
-
-      ~Directory_Walker()
-         {
-         if(m_cur_dir.first)
-            ::closedir(m_cur_dir.first);
-         }
-
-      int next_fd();
-   private:
-      void add_directory(const std::string& dirname)
-         {
-         m_dirlist.push_back(dirname);
-         }
-
-      std::pair<struct dirent*, std::string> get_next_dirent();
-
-      std::pair<DIR*, std::string> m_cur_dir;
-      std::deque<std::string> m_dirlist;
-   };
-
-std::pair<struct dirent*, std::string> Directory_Walker::get_next_dirent()
-   {
-   while(m_cur_dir.first)
-      {
-      struct dirent* dir = ::readdir(m_cur_dir.first);
-
-      if(dir)
-         return std::make_pair(dir, m_cur_dir.second);
-
-      ::closedir(m_cur_dir.first);
-      m_cur_dir = std::make_pair<DIR*, std::string>(0, "");
-
-      while(!m_dirlist.empty() && m_cur_dir.first == 0)
-         {
-         const std::string next_dir_name = m_dirlist[0];
-         m_dirlist.pop_front();
-
-         if(DIR* next_dir = ::opendir(next_dir_name.c_str()))
-            m_cur_dir = std::make_pair(next_dir, next_dir_name);
-         }
-      }
-
-   return std::make_pair<struct dirent*, std::string>(0, ""); // nothing left
-   }
-
-int Directory_Walker::next_fd()
-   {
-   while(true)
-      {
-      std::pair<struct dirent*, std::string> entry = get_next_dirent();
-
-      if(!entry.first)
-         break; // no more dirs
-
-      const std::string filename = entry.first->d_name;
-
-      if(filename == "." || filename == "..")
-         continue;
-
-      const std::string full_path = entry.second + '/' + filename;
-
-      struct stat stat_buf;
-      if(::lstat(full_path.c_str(), &stat_buf) == -1)
-         continue;
-
-      if(S_ISDIR(stat_buf.st_mode))
-         {
-         add_directory(full_path);
-         }
-      else if(S_ISREG(stat_buf.st_mode) && (stat_buf.st_mode & S_IROTH))
-         {
-         int fd = ::open(full_path.c_str(), O_RDONLY | O_NOCTTY);
-
-         if(fd >= 0)
-            return fd;
-         }
-      }
-
-   return -1;
-   }
-
-}
-
-/**
-* FTW_EntropySource Constructor
-*/
-FTW_EntropySource::FTW_EntropySource(const std::string& p) : path(p)
-   {
-   dir = 0;
-   }
-
-/**
-* FTW_EntropySource Destructor
-*/
-FTW_EntropySource::~FTW_EntropySource()
-   {
-   delete dir;
-   }
-
-void FTW_EntropySource::poll(Entropy_Accumulator& accum)
-   {
-   const size_t MAX_FILES_READ_PER_POLL = 2048;
-
-   if(!dir)
-      dir = new Directory_Walker(path);
-
-   MemoryRegion<byte>& io_buffer = accum.get_io_buffer(4096);
-
-   for(size_t i = 0; i != MAX_FILES_READ_PER_POLL; ++i)
-      {
-      int fd = dir->next_fd();
-
-      // If we've exhaused this walk of the directory, halt the poll
-      if(fd == -1)
-         {
-         delete dir;
-         dir = 0;
-         break;
-         }
-
-      ssize_t got = ::read(fd, &io_buffer[0], io_buffer.size());
-      ::close(fd);
-
-      if(got > 0)
-         accum.add(&io_buffer[0], got, .001);
-
-      if(accum.polling_goal_achieved())
-         break;
-      }
-   }
-
-}
-/*
 * Entropy Source Using Intel's rdrand instruction
 * (C) 2012 Jack Lloyd
 *
@@ -22596,423 +21960,119 @@ void Intel_Rdrand::poll(Entropy_Accumulator& accum)
 
 }
 /*
-* Unix EntropySource
+* Win32 EntropySource
 * (C) 1999-2009 Jack Lloyd
 *
 * Distributed under the terms of the Botan license
 */
 
-#include <algorithm>
-
-#include <sys/time.h>
-#include <sys/stat.h>
-//#include <sys/resource.h>
-#include <unistd.h>
+#include <windows.h>
+#include <tlhelp32.h>
 
 namespace Botan {
 
-namespace {
-
 /**
-* Sort ordering by priority
+* Win32 poll using stats functions including Tooltip32
 */
-bool Unix_Program_Cmp(const Unix_Program& a, const Unix_Program& b)
+void Win32_EntropySource::poll(Entropy_Accumulator& accum)
    {
-   if(a.priority == b.priority)
-      return (a.name_and_args < b.name_and_args);
+   /*
+   First query a bunch of basic statistical stuff, though
+   don't count it for much in terms of contributed entropy.
+   */
+   accum.add(GetTickCount(), 0);
+   accum.add(GetMessagePos(), 0);
+   accum.add(GetMessageTime(), 0);
+   accum.add(GetInputState(), 0);
+   accum.add(GetCurrentProcessId(), 0);
+   accum.add(GetCurrentThreadId(), 0);
 
-   return (a.priority < b.priority);
-   }
+   SYSTEM_INFO sys_info;
+   GetSystemInfo(&sys_info);
+   accum.add(sys_info, 1);
 
-}
+   MEMORYSTATUS mem_info;
+   GlobalMemoryStatus(&mem_info);
+   accum.add(mem_info, 1);
 
-/**
-* Unix_EntropySource Constructor
-*/
-Unix_EntropySource::Unix_EntropySource(const std::vector<std::string>& path) :
-   PATH(path)
-   {
-   std::vector<Unix_Program> default_sources = get_default_sources();
-   add_sources(&default_sources[0], default_sources.size());
-   }
+   POINT point;
+   GetCursorPos(&point);
+   accum.add(point, 1);
 
-/**
-* Add sources to the list
-*/
-void Unix_EntropySource::add_sources(const Unix_Program srcs[], size_t count)
-   {
-   sources.insert(sources.end(), srcs, srcs + count);
-   std::sort(sources.begin(), sources.end(), Unix_Program_Cmp);
-   }
+   GetCaretPos(&point);
+   accum.add(point, 1);
 
-/**
-* Poll for entropy on a generic Unix system, first by grabbing various
-* statistics (stat on common files, getrusage, etc), and then, if more
-* is required, by exec'ing various programs like uname and rpcinfo and
-* reading the output.
-*/
-void Unix_EntropySource::poll(Entropy_Accumulator& accum)
-   {
-   const char* stat_targets[] = {
-      "/",
-      "/tmp",
-      "/var/tmp",
-      "/usr",
-      "/home",
-      "/etc/passwd",
-      ".",
-      "..",
-      0 };
+   LARGE_INTEGER perf_counter;
+   QueryPerformanceCounter(&perf_counter);
+   accum.add(perf_counter, 0);
 
-   for(size_t i = 0; stat_targets[i]; i++)
-      {
-      struct stat statbuf;
-      clear_mem(&statbuf, 1);
-      if(::stat(stat_targets[i], &statbuf) == 0)
-         accum.add(&statbuf, sizeof(statbuf), .005);
+   /*
+   Now use the Tooltip library to iterate throug various objects on
+   the system, including processes, threads, and heap objects.
+   */
+
+   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPALL, 0);
+
+#define TOOLHELP32_ITER(DATA_TYPE, FUNC_FIRST, FUNC_NEXT) \
+   if(!accum.polling_goal_achieved())                     \
+      {                                                   \
+      DATA_TYPE info;                                     \
+      info.dwSize = sizeof(DATA_TYPE);                    \
+      if(FUNC_FIRST(snapshot, &info))                     \
+         {                                                \
+         do                                               \
+            {                                             \
+            accum.add(info, 1);                           \
+            } while(FUNC_NEXT(snapshot, &info));          \
+         }                                                \
       }
 
-   accum.add(::getpid(),  0);
-   accum.add(::getppid(), 0);
-   accum.add(::getuid(),  0);
-   accum.add(::getgid(), 0);
-   accum.add(::getpgrp(), 0);
+   TOOLHELP32_ITER(MODULEENTRY32, Module32First, Module32Next);
+   TOOLHELP32_ITER(PROCESSENTRY32, Process32First, Process32Next);
+   TOOLHELP32_ITER(THREADENTRY32, Thread32First, Thread32Next);
 
-   struct ::rusage usage;
-   ::getrusage(RUSAGE_SELF, &usage);
-   accum.add(usage, .005);
+#undef TOOLHELP32_ITER
 
-   ::getrusage(RUSAGE_CHILDREN, &usage);
-   accum.add(usage, .005);
-
-   const size_t MINIMAL_WORKING = 16;
-
-   MemoryRegion<byte>& io_buffer = accum.get_io_buffer(DEFAULT_BUFFERSIZE);
-
-   for(size_t i = 0; i != sources.size(); i++)
+   if(!accum.polling_goal_achieved())
       {
-      DataSource_Command pipe(sources[i].name_and_args, PATH);
+      size_t heap_lists_found = 0;
+      HEAPLIST32 heap_list;
+      heap_list.dwSize = sizeof(HEAPLIST32);
 
-      size_t got_from_src = 0;
+      const size_t HEAP_LISTS_MAX = 32;
+      const size_t HEAP_OBJS_PER_LIST = 128;
 
-      while(!pipe.end_of_data())
+      if(Heap32ListFirst(snapshot, &heap_list))
          {
-         size_t got_this_loop = pipe.read(&io_buffer[0], io_buffer.size());
-         got_from_src += got_this_loop;
-
-         accum.add(&io_buffer[0], got_this_loop, .005);
-         }
-
-      sources[i].working = (got_from_src >= MINIMAL_WORKING) ? true : false;
-
-      if(accum.polling_goal_achieved())
-         break;
-      }
-   }
-
-}
-/*
-* Unix Command Execution
-* (C) 1999-2007 Jack Lloyd
-*
-* Distributed under the terms of the Botan license
-*/
-
-
-#include <sys/time.h>
-#include <sys/types.h>
-//#include <sys/wait.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
-
-namespace Botan {
-
-namespace {
-
-/**
-* Attempt to execute the command
-*/
-void do_exec(const std::vector<std::string>& arg_list,
-             const std::vector<std::string>& paths)
-   {
-   const size_t args = arg_list.size() - 1;
-
-   const char* arg1 = (args >= 1) ? arg_list[1].c_str() : 0;
-   const char* arg2 = (args >= 2) ? arg_list[2].c_str() : 0;
-   const char* arg3 = (args >= 3) ? arg_list[3].c_str() : 0;
-   const char* arg4 = (args >= 4) ? arg_list[4].c_str() : 0;
-
-   for(size_t j = 0; j != paths.size(); j++)
-      {
-      const std::string full_path = paths[j] + "/" + arg_list[0];
-      const char* fsname = full_path.c_str();
-
-      ::execl(fsname, fsname, arg1, arg2, arg3, arg4, NULL);
-      }
-   }
-
-}
-
-/**
-* Local information about the pipe
-*/
-struct pipe_wrapper
-   {
-   int fd;
-   pid_t pid;
-
-   pipe_wrapper(int f, pid_t p) : fd(f), pid(p) {}
-   ~pipe_wrapper() { ::close(fd); }
-   };
-
-/**
-* Read from the pipe
-*/
-size_t DataSource_Command::read(byte buf[], size_t length)
-   {
-   if(end_of_data())
-      return 0;
-
-   fd_set set;
-   FD_ZERO(&set);
-   FD_SET(pipe->fd, &set);
-
-   struct ::timeval tv;
-   tv.tv_sec = 0;
-   tv.tv_usec = MAX_BLOCK_USECS;
-
-   ssize_t got = 0;
-   if(::select(pipe->fd + 1, &set, 0, 0, &tv) == 1)
-      {
-      if(FD_ISSET(pipe->fd, &set))
-         got = ::read(pipe->fd, buf, length);
-      }
-
-   if(got <= 0)
-      {
-      shutdown_pipe();
-      return 0;
-      }
-
-   return static_cast<size_t>(got);
-   }
-
-/**
-* Peek at the pipe contents
-*/
-size_t DataSource_Command::peek(byte[], size_t, size_t) const
-   {
-   if(end_of_data())
-      throw Invalid_State("DataSource_Command: Cannot peek when out of data");
-   throw Stream_IO_Error("Cannot peek/seek on a command pipe");
-   }
-
-bool DataSource_Command::check_available(size_t)
-   {
-   throw Stream_IO_Error("Cannot check available bytes on a pipe");
-   }
-
-/**
-* Check if we reached EOF
-*/
-bool DataSource_Command::end_of_data() const
-   {
-   return (pipe) ? false : true;
-   }
-
-/**
-* Return the Unix file descriptor of the pipe
-*/
-int DataSource_Command::fd() const
-   {
-   if(!pipe)
-      return -1;
-   return pipe->fd;
-   }
-
-/**
-* Return a human-readable ID for this stream
-*/
-std::string DataSource_Command::id() const
-   {
-   return "Unix command: " + arg_list[0];
-   }
-
-/**
-* Create the pipe
-*/
-void DataSource_Command::create_pipe(const std::vector<std::string>& paths)
-   {
-   bool found_something = false;
-
-   for(size_t j = 0; j != paths.size(); j++)
-      {
-      const std::string full_path = paths[j] + "/" + arg_list[0];
-      if(::access(full_path.c_str(), X_OK) == 0)
-         {
-         found_something = true;
-         break;
-         }
-      }
-
-   if(!found_something)
-      return;
-
-   int pipe_fd[2];
-   if(::pipe(pipe_fd) != 0)
-      return;
-
-   pid_t pid = ::fork();
-
-   if(pid == -1)
-      {
-      ::close(pipe_fd[0]);
-      ::close(pipe_fd[1]);
-      }
-   else if(pid > 0)
-      {
-      pipe = new pipe_wrapper(pipe_fd[0], pid);
-      ::close(pipe_fd[1]);
-      }
-   else
-      {
-      if(dup2(pipe_fd[1], STDOUT_FILENO) == -1)
-         ::exit(127);
-      if(close(pipe_fd[0]) != 0 || close(pipe_fd[1]) != 0)
-         ::exit(127);
-      if(close(STDERR_FILENO) != 0)
-         ::exit(127);
-
-      do_exec(arg_list, paths);
-      ::exit(127);
-      }
-   }
-
-/**
-* Shutdown the pipe
-*/
-void DataSource_Command::shutdown_pipe()
-   {
-   if(pipe)
-      {
-      pid_t reaped = waitpid(pipe->pid, 0, WNOHANG);
-
-      if(reaped == 0)
-         {
-         kill(pipe->pid, SIGTERM);
-
-         struct ::timeval tv;
-         tv.tv_sec = 0;
-         tv.tv_usec = KILL_WAIT;
-         select(0, 0, 0, 0, &tv);
-
-         reaped = ::waitpid(pipe->pid, 0, WNOHANG);
-
-         if(reaped == 0)
+         do
             {
-            ::kill(pipe->pid, SIGKILL);
-            do
-               reaped = ::waitpid(pipe->pid, 0, 0);
-            while(reaped == -1);
-            }
+            accum.add(heap_list, 1);
+
+            if(++heap_lists_found > HEAP_LISTS_MAX)
+               break;
+
+            size_t heap_objs_found = 0;
+            HEAPENTRY32 heap_entry;
+            heap_entry.dwSize = sizeof(HEAPENTRY32);
+            if(Heap32First(&heap_entry, heap_list.th32ProcessID,
+                           heap_list.th32HeapID))
+               {
+               do
+                  {
+                  if(heap_objs_found++ > HEAP_OBJS_PER_LIST)
+                     break;
+                  accum.add(heap_entry, 1);
+                  } while(Heap32Next(&heap_entry));
+               }
+
+            if(accum.polling_goal_achieved())
+               break;
+
+            } while(Heap32ListNext(snapshot, &heap_list));
          }
-
-      delete pipe;
-      pipe = 0;
       }
-   }
 
-/**
-* DataSource_Command Constructor
-*/
-DataSource_Command::DataSource_Command(const std::string& prog_and_args,
-                                       const std::vector<std::string>& paths) :
-   MAX_BLOCK_USECS(100000), KILL_WAIT(10000)
-   {
-   arg_list = split_on(prog_and_args, ' ');
-
-   if(arg_list.size() == 0)
-      throw Invalid_Argument("DataSource_Command: No command given");
-   if(arg_list.size() > 5)
-      throw Invalid_Argument("DataSource_Command: Too many args");
-
-   pipe = 0;
-   create_pipe(paths);
-   }
-
-/**
-* DataSource_Command Destructor
-*/
-DataSource_Command::~DataSource_Command()
-   {
-   if(!end_of_data())
-      shutdown_pipe();
-   }
-
-}
-/*
-* Program List for Unix_EntropySource
-* (C) 1999-2007 Jack Lloyd
-*
-* Distributed under the terms of the Botan license
-*/
-
-
-namespace Botan {
-
-/**
-* Default Commands for Entropy Gathering
-*/
-std::vector<Unix_Program> Unix_EntropySource::get_default_sources()
-   {
-   std::vector<Unix_Program> srcs;
-
-   srcs.push_back(Unix_Program("netstat -in",           1));
-   srcs.push_back(Unix_Program("pfstat",                1));
-   srcs.push_back(Unix_Program("vmstat -s",             1));
-   srcs.push_back(Unix_Program("vmstat",                1));
-
-   srcs.push_back(Unix_Program("arp -a -n",             2));
-   srcs.push_back(Unix_Program("ifconfig -a",           2));
-   srcs.push_back(Unix_Program("iostat",                2));
-   srcs.push_back(Unix_Program("ipcs -a",               2));
-   srcs.push_back(Unix_Program("mpstat",                2));
-   srcs.push_back(Unix_Program("netstat -an",           2));
-   srcs.push_back(Unix_Program("netstat -s",            2));
-   srcs.push_back(Unix_Program("nfsstat",               2));
-   srcs.push_back(Unix_Program("portstat",              2));
-   srcs.push_back(Unix_Program("procinfo -a",           2));
-   srcs.push_back(Unix_Program("pstat -T",              2));
-   srcs.push_back(Unix_Program("pstat -s",              2));
-   srcs.push_back(Unix_Program("uname -a",              2));
-   srcs.push_back(Unix_Program("uptime",                2));
-
-   srcs.push_back(Unix_Program("listarea",              3));
-   srcs.push_back(Unix_Program("listdev",               3));
-   srcs.push_back(Unix_Program("ps -A",                 3));
-   srcs.push_back(Unix_Program("sysinfo",               3));
-
-   srcs.push_back(Unix_Program("finger",                4));
-   srcs.push_back(Unix_Program("mailstats",             4));
-   srcs.push_back(Unix_Program("rpcinfo -p localhost",  4));
-   srcs.push_back(Unix_Program("who",                   4));
-
-   srcs.push_back(Unix_Program("df -l",                 4));
-   srcs.push_back(Unix_Program("dmesg",                 4));
-   srcs.push_back(Unix_Program("last -5",               4));
-   srcs.push_back(Unix_Program("ls -alni /proc",        4));
-   srcs.push_back(Unix_Program("ls -alni /tmp",         4));
-   srcs.push_back(Unix_Program("pstat -f",              4));
-
-   srcs.push_back(Unix_Program("ps -elf",               5));
-   srcs.push_back(Unix_Program("ps aux",                5));
-
-   srcs.push_back(Unix_Program("lsof -n",               6));
-   srcs.push_back(Unix_Program("sar -A",                6));
-
-   return srcs;
+   CloseHandle(snapshot);
    }
 
 }
@@ -23940,57 +23000,6 @@ DataSource_Stream::DataSource_Stream(std::istream& in,
 DataSource_Stream::~DataSource_Stream()
    {
    delete source_p;
-   }
-
-}
-/*
-* Pipe I/O for Unix
-* (C) 1999-2007 Jack Lloyd
-*
-* Distributed under the terms of the Botan license
-*/
-
-#include <unistd.h>
-
-namespace Botan {
-
-/*
-* Write data from a pipe into a Unix fd
-*/
-int operator<<(int fd, Pipe& pipe)
-   {
-   SecureVector<byte> buffer(DEFAULT_BUFFERSIZE);
-   while(pipe.remaining())
-      {
-      size_t got = pipe.read(&buffer[0], buffer.size());
-      size_t position = 0;
-      while(got)
-         {
-         ssize_t ret = write(fd, &buffer[position], got);
-         if(ret == -1)
-            throw Stream_IO_Error("Pipe output operator (unixfd) has failed");
-         position += ret;
-         got -= ret;
-         }
-      }
-   return fd;
-   }
-
-/*
-* Read data from a Unix fd into a pipe
-*/
-int operator>>(int fd, Pipe& pipe)
-   {
-   SecureVector<byte> buffer(DEFAULT_BUFFERSIZE);
-   while(true)
-      {
-      ssize_t ret = read(fd, &buffer[0], buffer.size());
-      if(ret == 0) break;
-      if(ret == -1)
-         throw Stream_IO_Error("Pipe input operator (unixfd) has failed");
-      pipe.write(&buffer[0], ret);
-      }
-   return fd;
    }
 
 }
@@ -39788,57 +38797,35 @@ Mutex* Noop_Mutex_Factory::make()
 
 }
 /*
-* Pthread Mutex
-* (C) 1999-2007 Jack Lloyd
+* Win32 Mutex
+* (C) 2006 Luca Piccarreta
+*     2006-2007 Jack Lloyd
 *
 * Distributed under the terms of the Botan license
 */
 
-
-#ifndef _POSIX_C_SOURCE
-  #define _POSIX_C_SOURCE 199506
-#endif
-
-#include <pthread.h>
+#include <windows.h>
 
 namespace Botan {
 
 /*
-* Pthread Mutex Factory
+* Win32 Mutex Factory
 */
-Mutex* Pthread_Mutex_Factory::make()
+Mutex* Win32_Mutex_Factory::make()
    {
-
-   class Pthread_Mutex : public Mutex
+   class Win32_Mutex : public Mutex
       {
       public:
-         void lock()
-            {
-            if(pthread_mutex_lock(&mutex) != 0)
-               throw Invalid_State("Pthread_Mutex::lock: Error occured");
-            }
+         void lock() { EnterCriticalSection(&mutex); }
+         void unlock() { LeaveCriticalSection(&mutex); }
 
-         void unlock()
-            {
-            if(pthread_mutex_unlock(&mutex) != 0)
-               throw Invalid_State("Pthread_Mutex::unlock: Error occured");
-            }
-
-         Pthread_Mutex()
-            {
-            if(pthread_mutex_init(&mutex, 0) != 0)
-               throw Invalid_State("Pthread_Mutex: initialization failed");
-            }
-
-         ~Pthread_Mutex()
-            {
-            pthread_mutex_destroy(&mutex);
-            }
+         Win32_Mutex() { InitializeCriticalSection(&mutex); }
+         ~Win32_Mutex() { DeleteCriticalSection(&mutex); }
       private:
-         pthread_mutex_t mutex;
+         CRITICAL_SECTION mutex;
       };
 
-   return new Pthread_Mutex();
+   return new Win32_Mutex();
    }
 
 }
