@@ -31,57 +31,208 @@ class Win32_EntropySource : public EntropySource
 namespace Botan {
 
 /**
-* Represents a DLL or shared object
+* Fake SIMD, using plain scalar operations
+* Often still faster than iterative on superscalar machines
 */
-class Dynamically_Loaded_Library
+class SIMD_Scalar
    {
    public:
-      /**
-      * Load a DLL (or fail with an exception)
-      * @param lib_name name or path to a library
-      *
-      * If you don't use a full path, the search order will be defined
-      * by whatever the system linker does by default. Always using fully
-      * qualified pathnames can help prevent code injection attacks (eg
-      * via manipulation of LD_LIBRARY_PATH on Linux)
-      */
-      Dynamically_Loaded_Library(const std::string& lib_name);
+      static bool enabled() { return true; }
 
-      /**
-      * Unload the DLL
-      * @warning Any pointers returned by resolve()/resolve_symbol()
-      * should not be used after this destructor runs.
-      */
-      ~Dynamically_Loaded_Library();
-
-      /**
-      * Load a symbol (or fail with an exception)
-      * @param symbol names the symbol to load
-      * @return address of the loaded symbol
-      */
-      void* resolve_symbol(const std::string& symbol);
-
-      /**
-      * Convenience function for casting symbol to the right type
-      * @param symbol names the symbol to load
-      * @return address of the loaded symbol
-      */
-      template<typename T>
-      T resolve(const std::string& symbol)
+      SIMD_Scalar(const u32bit B[4])
          {
-#if defined(__GNUC__) && __GNUC__ < 4
-         return (T)(resolve_symbol(symbol));
-#else
-         return reinterpret_cast<T>(resolve_symbol(symbol));
-#endif
+         R0 = B[0];
+         R1 = B[1];
+         R2 = B[2];
+         R3 = B[3];
+         }
+
+      SIMD_Scalar(u32bit B0, u32bit B1, u32bit B2, u32bit B3)
+         {
+         R0 = B0;
+         R1 = B1;
+         R2 = B2;
+         R3 = B3;
+         }
+
+      SIMD_Scalar(u32bit B)
+         {
+         R0 = B;
+         R1 = B;
+         R2 = B;
+         R3 = B;
+         }
+
+      static SIMD_Scalar load_le(const void* in)
+         {
+         const byte* in_b = static_cast<const byte*>(in);
+         return SIMD_Scalar(Botan::load_le<u32bit>(in_b, 0),
+                            Botan::load_le<u32bit>(in_b, 1),
+                            Botan::load_le<u32bit>(in_b, 2),
+                            Botan::load_le<u32bit>(in_b, 3));
+         }
+
+      static SIMD_Scalar load_be(const void* in)
+         {
+         const byte* in_b = static_cast<const byte*>(in);
+         return SIMD_Scalar(Botan::load_be<u32bit>(in_b, 0),
+                            Botan::load_be<u32bit>(in_b, 1),
+                            Botan::load_be<u32bit>(in_b, 2),
+                            Botan::load_be<u32bit>(in_b, 3));
+         }
+
+      void store_le(byte out[]) const
+         {
+         Botan::store_le(out, R0, R1, R2, R3);
+         }
+
+      void store_be(byte out[]) const
+         {
+         Botan::store_be(out, R0, R1, R2, R3);
+         }
+
+      void rotate_left(size_t rot)
+         {
+         R0 = Botan::rotate_left(R0, rot);
+         R1 = Botan::rotate_left(R1, rot);
+         R2 = Botan::rotate_left(R2, rot);
+         R3 = Botan::rotate_left(R3, rot);
+         }
+
+      void rotate_right(size_t rot)
+         {
+         R0 = Botan::rotate_right(R0, rot);
+         R1 = Botan::rotate_right(R1, rot);
+         R2 = Botan::rotate_right(R2, rot);
+         R3 = Botan::rotate_right(R3, rot);
+         }
+
+      void operator+=(const SIMD_Scalar& other)
+         {
+         R0 += other.R0;
+         R1 += other.R1;
+         R2 += other.R2;
+         R3 += other.R3;
+         }
+
+      SIMD_Scalar operator+(const SIMD_Scalar& other) const
+         {
+         return SIMD_Scalar(R0 + other.R0,
+                            R1 + other.R1,
+                            R2 + other.R2,
+                            R3 + other.R3);
+         }
+
+      void operator-=(const SIMD_Scalar& other)
+         {
+         R0 -= other.R0;
+         R1 -= other.R1;
+         R2 -= other.R2;
+         R3 -= other.R3;
+         }
+
+      SIMD_Scalar operator-(const SIMD_Scalar& other) const
+         {
+         return SIMD_Scalar(R0 - other.R0,
+                            R1 - other.R1,
+                            R2 - other.R2,
+                            R3 - other.R3);
+         }
+
+      void operator^=(const SIMD_Scalar& other)
+         {
+         R0 ^= other.R0;
+         R1 ^= other.R1;
+         R2 ^= other.R2;
+         R3 ^= other.R3;
+         }
+
+      SIMD_Scalar operator^(const SIMD_Scalar& other) const
+         {
+         return SIMD_Scalar(R0 ^ other.R0,
+                            R1 ^ other.R1,
+                            R2 ^ other.R2,
+                            R3 ^ other.R3);
+         }
+
+      void operator|=(const SIMD_Scalar& other)
+         {
+         R0 |= other.R0;
+         R1 |= other.R1;
+         R2 |= other.R2;
+         R3 |= other.R3;
+         }
+
+      SIMD_Scalar operator&(const SIMD_Scalar& other)
+         {
+         return SIMD_Scalar(R0 & other.R0,
+                            R1 & other.R1,
+                            R2 & other.R2,
+                            R3 & other.R3);
+         }
+
+      void operator&=(const SIMD_Scalar& other)
+         {
+         R0 &= other.R0;
+         R1 &= other.R1;
+         R2 &= other.R2;
+         R3 &= other.R3;
+         }
+
+      SIMD_Scalar operator<<(size_t shift) const
+         {
+         return SIMD_Scalar(R0 << shift,
+                            R1 << shift,
+                            R2 << shift,
+                            R3 << shift);
+         }
+
+      SIMD_Scalar operator>>(size_t shift) const
+         {
+         return SIMD_Scalar(R0 >> shift,
+                            R1 >> shift,
+                            R2 >> shift,
+                            R3 >> shift);
+         }
+
+      SIMD_Scalar operator~() const
+         {
+         return SIMD_Scalar(~R0, ~R1, ~R2, ~R3);
+         }
+
+      // (~reg) & other
+      SIMD_Scalar andc(const SIMD_Scalar& other)
+         {
+         return SIMD_Scalar(~R0 & other.R0,
+                            ~R1 & other.R1,
+                            ~R2 & other.R2,
+                            ~R3 & other.R3);
+         }
+
+      SIMD_Scalar bswap() const
+         {
+         return SIMD_Scalar(reverse_bytes(R0),
+                            reverse_bytes(R1),
+                            reverse_bytes(R2),
+                            reverse_bytes(R3));
+         }
+
+      static void transpose(SIMD_Scalar& B0, SIMD_Scalar& B1,
+                            SIMD_Scalar& B2, SIMD_Scalar& B3)
+         {
+         SIMD_Scalar T0(B0.R0, B1.R0, B2.R0, B3.R0);
+         SIMD_Scalar T1(B0.R1, B1.R1, B2.R1, B3.R1);
+         SIMD_Scalar T2(B0.R2, B1.R2, B2.R2, B3.R2);
+         SIMD_Scalar T3(B0.R3, B1.R3, B2.R3, B3.R3);
+
+         B0 = T0;
+         B1 = T1;
+         B2 = T2;
+         B3 = T3;
          }
 
    private:
-      Dynamically_Loaded_Library(const Dynamically_Loaded_Library&);
-      Dynamically_Loaded_Library& operator=(const Dynamically_Loaded_Library&);
-
-      std::string lib_name;
-      void* lib;
+      u32bit R0, R1, R2, R3;
    };
 
 }
@@ -976,179 +1127,6 @@ void append_tls_length_value(MemoryRegion<byte>& buf,
 
 }
 
-#if defined(BOTAN_TARGET_CPU_HAS_SSE2)
-
-#include <emmintrin.h>
-
-namespace Botan {
-
-class SIMD_SSE2
-   {
-   public:
-      static bool enabled() { return CPUID::has_sse2(); }
-
-      SIMD_SSE2(const u32bit B[4])
-         {
-         reg = _mm_loadu_si128(reinterpret_cast<const __m128i*>(B));
-         }
-
-      SIMD_SSE2(u32bit B0, u32bit B1, u32bit B2, u32bit B3)
-         {
-         reg = _mm_set_epi32(B0, B1, B2, B3);
-         }
-
-      SIMD_SSE2(u32bit B)
-         {
-         reg = _mm_set1_epi32(B);
-         }
-
-      static SIMD_SSE2 load_le(const void* in)
-         {
-         return _mm_loadu_si128(reinterpret_cast<const __m128i*>(in));
-         }
-
-      static SIMD_SSE2 load_be(const void* in)
-         {
-         return load_le(in).bswap();
-         }
-
-      void store_le(byte out[]) const
-         {
-         _mm_storeu_si128(reinterpret_cast<__m128i*>(out), reg);
-         }
-
-      void store_be(byte out[]) const
-         {
-         bswap().store_le(out);
-         }
-
-      void rotate_left(size_t rot)
-         {
-         reg = _mm_or_si128(_mm_slli_epi32(reg, static_cast<int>(rot)),
-                            _mm_srli_epi32(reg, static_cast<int>(32-rot)));
-         }
-
-      void rotate_right(size_t rot)
-         {
-         rotate_left(32 - rot);
-         }
-
-      void operator+=(const SIMD_SSE2& other)
-         {
-         reg = _mm_add_epi32(reg, other.reg);
-         }
-
-      SIMD_SSE2 operator+(const SIMD_SSE2& other) const
-         {
-         return _mm_add_epi32(reg, other.reg);
-         }
-
-      void operator-=(const SIMD_SSE2& other)
-         {
-         reg = _mm_sub_epi32(reg, other.reg);
-         }
-
-      SIMD_SSE2 operator-(const SIMD_SSE2& other) const
-         {
-         return _mm_sub_epi32(reg, other.reg);
-         }
-
-      void operator^=(const SIMD_SSE2& other)
-         {
-         reg = _mm_xor_si128(reg, other.reg);
-         }
-
-      SIMD_SSE2 operator^(const SIMD_SSE2& other) const
-         {
-         return _mm_xor_si128(reg, other.reg);
-         }
-
-      void operator|=(const SIMD_SSE2& other)
-         {
-         reg = _mm_or_si128(reg, other.reg);
-         }
-
-      SIMD_SSE2 operator&(const SIMD_SSE2& other)
-         {
-         return _mm_and_si128(reg, other.reg);
-         }
-
-      void operator&=(const SIMD_SSE2& other)
-         {
-         reg = _mm_and_si128(reg, other.reg);
-         }
-
-      SIMD_SSE2 operator<<(size_t shift) const
-         {
-         return _mm_slli_epi32(reg, static_cast<int>(shift));
-         }
-
-      SIMD_SSE2 operator>>(size_t shift) const
-         {
-         return _mm_srli_epi32(reg, static_cast<int>(shift));
-         }
-
-      SIMD_SSE2 operator~() const
-         {
-         return _mm_xor_si128(reg, _mm_set1_epi32(0xFFFFFFFF));
-         }
-
-      // (~reg) & other
-      SIMD_SSE2 andc(const SIMD_SSE2& other)
-         {
-         return _mm_andnot_si128(reg, other.reg);
-         }
-
-      SIMD_SSE2 bswap() const
-         {
-         __m128i T = reg;
-
-         T = _mm_shufflehi_epi16(T, _MM_SHUFFLE(2, 3, 0, 1));
-         T = _mm_shufflelo_epi16(T, _MM_SHUFFLE(2, 3, 0, 1));
-
-         return _mm_or_si128(_mm_srli_epi16(T, 8),
-                             _mm_slli_epi16(T, 8));
-         }
-
-      static void transpose(SIMD_SSE2& B0, SIMD_SSE2& B1,
-                            SIMD_SSE2& B2, SIMD_SSE2& B3)
-         {
-         __m128i T0 = _mm_unpacklo_epi32(B0.reg, B1.reg);
-         __m128i T1 = _mm_unpacklo_epi32(B2.reg, B3.reg);
-         __m128i T2 = _mm_unpackhi_epi32(B0.reg, B1.reg);
-         __m128i T3 = _mm_unpackhi_epi32(B2.reg, B3.reg);
-         B0.reg = _mm_unpacklo_epi64(T0, T1);
-         B1.reg = _mm_unpackhi_epi64(T0, T1);
-         B2.reg = _mm_unpacklo_epi64(T2, T3);
-         B3.reg = _mm_unpackhi_epi64(T2, T3);
-         }
-
-   private:
-      SIMD_SSE2(__m128i in) { reg = in; }
-
-      __m128i reg;
-   };
-
-}
-
-#endif
-
-
-namespace Botan {
-
-/**
-* Entropy source using the rdrand instruction first introduced on
-* Intel's Ivy Bridge architecture.
-*/
-class Intel_Rdrand : public EntropySource
-   {
-   public:
-      std::string name() const { return "Intel Rdrand"; }
-      void poll(Entropy_Accumulator& accum);
-   };
-
-}
-
 
 namespace Botan {
 
@@ -1538,8 +1516,8 @@ void unlock_mem(void* addr, size_t length);
 }
 
 
-#if (BOTAN_MP_WORD_BITS != 64)
-   #error The mp_x86_64 module requires that BOTAN_MP_WORD_BITS == 64
+#if (BOTAN_MP_WORD_BITS != 32)
+   #error The mp_x86_32 module requires that BOTAN_MP_WORD_BITS == 32
 #endif
 
 namespace Botan {
@@ -1547,7 +1525,7 @@ namespace Botan {
 extern "C" {
 
 /*
-* Helper Macros for x86-64 Assembly
+* Helper Macros for x86 Assembly
 */
 #define ASM(x) x "\n\t"
 
@@ -1557,9 +1535,9 @@ extern "C" {
 inline word word_madd2(word a, word b, word* c)
    {
    asm(
-      ASM("mulq %[b]")
-      ASM("addq %[c],%[a]")
-      ASM("adcq $0,%[carry]")
+      ASM("mull %[b]")
+      ASM("addl %[c],%[a]")
+      ASM("adcl $0,%[carry]")
 
       : [a]"=a"(a), [b]"=rm"(b), [carry]"=&d"(*c)
       : "0"(a), "1"(b), [c]"g"(*c) : "cc");
@@ -1573,13 +1551,13 @@ inline word word_madd2(word a, word b, word* c)
 inline word word_madd3(word a, word b, word c, word* d)
    {
    asm(
-      ASM("mulq %[b]")
+      ASM("mull %[b]")
 
-      ASM("addq %[c],%[a]")
-      ASM("adcq $0,%[carry]")
+      ASM("addl %[c],%[a]")
+      ASM("adcl $0,%[carry]")
 
-      ASM("addq %[d],%[a]")
-      ASM("adcq $0,%[carry]")
+      ASM("addl %[d],%[a]")
+      ASM("adcl $0,%[carry]")
 
       : [a]"=a"(a), [b]"=rm"(b), [carry]"=&d"(*d)
       : "0"(a), "1"(b), [c]"g"(c), [d]"g"(*d) : "cc");
@@ -1587,9 +1565,66 @@ inline word word_madd3(word a, word b, word c, word* d)
    return a;
    }
 
-#undef ASM
+}
 
 }
+
+
+namespace Botan {
+
+/**
+* Represents a DLL or shared object
+*/
+class Dynamically_Loaded_Library
+   {
+   public:
+      /**
+      * Load a DLL (or fail with an exception)
+      * @param lib_name name or path to a library
+      *
+      * If you don't use a full path, the search order will be defined
+      * by whatever the system linker does by default. Always using fully
+      * qualified pathnames can help prevent code injection attacks (eg
+      * via manipulation of LD_LIBRARY_PATH on Linux)
+      */
+      Dynamically_Loaded_Library(const std::string& lib_name);
+
+      /**
+      * Unload the DLL
+      * @warning Any pointers returned by resolve()/resolve_symbol()
+      * should not be used after this destructor runs.
+      */
+      ~Dynamically_Loaded_Library();
+
+      /**
+      * Load a symbol (or fail with an exception)
+      * @param symbol names the symbol to load
+      * @return address of the loaded symbol
+      */
+      void* resolve_symbol(const std::string& symbol);
+
+      /**
+      * Convenience function for casting symbol to the right type
+      * @param symbol names the symbol to load
+      * @return address of the loaded symbol
+      */
+      template<typename T>
+      T resolve(const std::string& symbol)
+         {
+#if defined(__GNUC__) && __GNUC__ < 4
+         return (T)(resolve_symbol(symbol));
+#else
+         return reinterpret_cast<T>(resolve_symbol(symbol));
+#endif
+         }
+
+   private:
+      Dynamically_Loaded_Library(const Dynamically_Loaded_Library&);
+      Dynamically_Loaded_Library& operator=(const Dynamically_Loaded_Library&);
+
+      std::string lib_name;
+      void* lib;
+   };
 
 }
 
@@ -2749,38 +2784,38 @@ namespace Botan {
 extern "C" {
 
 /*
-* Helper Macros for x86-64 Assembly
+* Helper Macros for x86 Assembly
 */
 #ifndef ASM
   #define ASM(x) x "\n\t"
 #endif
 
 #define ADDSUB2_OP(OPERATION, INDEX)                     \
-        ASM("movq 8*" #INDEX "(%[y]), %[carry]")         \
-        ASM(OPERATION " %[carry], 8*" #INDEX "(%[x])")   \
+        ASM("movl 4*" #INDEX "(%[y]), %[carry]")         \
+        ASM(OPERATION " %[carry], 4*" #INDEX "(%[x])")   \
 
 #define ADDSUB3_OP(OPERATION, INDEX)                     \
-        ASM("movq 8*" #INDEX "(%[x]), %[carry]")         \
-        ASM(OPERATION " 8*" #INDEX "(%[y]), %[carry]")   \
-        ASM("movq %[carry], 8*" #INDEX "(%[z])")         \
+        ASM("movl 4*" #INDEX "(%[x]), %[carry]")         \
+        ASM(OPERATION " 4*" #INDEX "(%[y]), %[carry]")   \
+        ASM("movl %[carry], 4*" #INDEX "(%[z])")         \
 
 #define LINMUL_OP(WRITE_TO, INDEX)                       \
-        ASM("movq 8*" #INDEX "(%[x]),%%rax")             \
-        ASM("mulq %[y]")                                 \
-        ASM("addq %[carry],%%rax")                       \
-        ASM("adcq $0,%%rdx")                             \
-        ASM("movq %%rdx,%[carry]")                       \
-        ASM("movq %%rax, 8*" #INDEX "(%[" WRITE_TO "])")
+        ASM("movl 4*" #INDEX "(%[x]),%%eax")             \
+        ASM("mull %[y]")                                 \
+        ASM("addl %[carry],%%eax")                       \
+        ASM("adcl $0,%%edx")                             \
+        ASM("movl %%edx,%[carry]")                       \
+        ASM("movl %%eax, 4*" #INDEX "(%[" WRITE_TO "])")
 
 #define MULADD_OP(IGNORED, INDEX)                        \
-        ASM("movq 8*" #INDEX "(%[x]),%%rax")             \
-        ASM("mulq %[y]")                                 \
-        ASM("addq %[carry],%%rax")                       \
-        ASM("adcq $0,%%rdx")                             \
-        ASM("addq 8*" #INDEX "(%[z]),%%rax")             \
-        ASM("adcq $0,%%rdx")                             \
-        ASM("movq %%rdx,%[carry]")                       \
-        ASM("movq %%rax, 8*" #INDEX " (%[z])")
+        ASM("movl 4*" #INDEX "(%[x]),%%eax")             \
+        ASM("mull %[y]")                                 \
+        ASM("addl %[carry],%%eax")                       \
+        ASM("adcl $0,%%edx")                             \
+        ASM("addl 4*" #INDEX "(%[z]),%%eax")             \
+        ASM("adcl $0,%%edx")                             \
+        ASM("movl %%edx,%[carry]")                       \
+        ASM("movl %%eax, 4*" #INDEX " (%[z])")
 
 #define DO_8_TIMES(MACRO, ARG) \
         MACRO(ARG, 0) \
@@ -2793,10 +2828,10 @@ extern "C" {
         MACRO(ARG, 7)
 
 #define ADD_OR_SUBTRACT(CORE_CODE)     \
-        ASM("rorq %[carry]")           \
+        ASM("rorl %[carry]")           \
         CORE_CODE                      \
-        ASM("sbbq %[carry],%[carry]")  \
-        ASM("negq %[carry]")
+        ASM("sbbl %[carry],%[carry]")  \
+        ASM("negl %[carry]")
 
 /*
 * Word Addition
@@ -2804,7 +2839,7 @@ extern "C" {
 inline word word_add(word x, word y, word* carry)
    {
    asm(
-      ADD_OR_SUBTRACT(ASM("adcq %[y],%[x]"))
+      ADD_OR_SUBTRACT(ASM("adcl %[y],%[x]"))
       : [x]"=r"(x), [carry]"=r"(*carry)
       : "0"(x), [y]"rm"(y), "1"(*carry)
       : "cc");
@@ -2817,7 +2852,7 @@ inline word word_add(word x, word y, word* carry)
 inline word word8_add2(word x[8], const word y[8], word carry)
    {
    asm(
-      ADD_OR_SUBTRACT(DO_8_TIMES(ADDSUB2_OP, "adcq"))
+      ADD_OR_SUBTRACT(DO_8_TIMES(ADDSUB2_OP, "adcl"))
       : [carry]"=r"(carry)
       : [x]"r"(x), [y]"r"(y), "0"(carry)
       : "cc", "memory");
@@ -2830,7 +2865,7 @@ inline word word8_add2(word x[8], const word y[8], word carry)
 inline word word8_add3(word z[8], const word x[8], const word y[8], word carry)
    {
    asm(
-      ADD_OR_SUBTRACT(DO_8_TIMES(ADDSUB3_OP, "adcq"))
+      ADD_OR_SUBTRACT(DO_8_TIMES(ADDSUB3_OP, "adcl"))
       : [carry]"=r"(carry)
       : [x]"r"(x), [y]"r"(y), [z]"r"(z), "0"(carry)
       : "cc", "memory");
@@ -2843,7 +2878,7 @@ inline word word8_add3(word z[8], const word x[8], const word y[8], word carry)
 inline word word_sub(word x, word y, word* carry)
    {
    asm(
-      ADD_OR_SUBTRACT(ASM("sbbq %[y],%[x]"))
+      ADD_OR_SUBTRACT(ASM("sbbl %[y],%[x]"))
       : [x]"=r"(x), [carry]"=r"(*carry)
       : "0"(x), [y]"rm"(y), "1"(*carry)
       : "cc");
@@ -2856,7 +2891,7 @@ inline word word_sub(word x, word y, word* carry)
 inline word word8_sub2(word x[8], const word y[8], word carry)
    {
    asm(
-      ADD_OR_SUBTRACT(DO_8_TIMES(ADDSUB2_OP, "sbbq"))
+      ADD_OR_SUBTRACT(DO_8_TIMES(ADDSUB2_OP, "sbbl"))
       : [carry]"=r"(carry)
       : [x]"r"(x), [y]"r"(y), "0"(carry)
       : "cc", "memory");
@@ -2869,7 +2904,7 @@ inline word word8_sub2(word x[8], const word y[8], word carry)
 inline word word8_sub2_rev(word x[8], const word y[8], word carry)
    {
    asm(
-      ADD_OR_SUBTRACT(DO_8_TIMES(ADDSUB3_OP, "sbbq"))
+      ADD_OR_SUBTRACT(DO_8_TIMES(ADDSUB3_OP, "sbbl"))
       : [carry]"=r"(carry)
       : [x]"r"(y), [y]"r"(x), [z]"r"(x), "0"(carry)
       : "cc", "memory");
@@ -2882,7 +2917,7 @@ inline word word8_sub2_rev(word x[8], const word y[8], word carry)
 inline word word8_sub3(word z[8], const word x[8], const word y[8], word carry)
    {
    asm(
-      ADD_OR_SUBTRACT(DO_8_TIMES(ADDSUB3_OP, "sbbq"))
+      ADD_OR_SUBTRACT(DO_8_TIMES(ADDSUB3_OP, "sbbl"))
       : [carry]"=r"(carry)
       : [x]"r"(x), [y]"r"(y), [z]"r"(z), "0"(carry)
       : "cc", "memory");
@@ -2898,7 +2933,7 @@ inline word word8_linmul2(word x[8], word y, word carry)
       DO_8_TIMES(LINMUL_OP, "x")
       : [carry]"=r"(carry)
       : [x]"r"(x), [y]"rm"(y), "0"(carry)
-      : "cc", "%rax", "%rdx");
+      : "cc", "%eax", "%edx");
    return carry;
    }
 
@@ -2911,7 +2946,7 @@ inline word word8_linmul3(word z[8], const word x[8], word y, word carry)
       DO_8_TIMES(LINMUL_OP, "z")
       : [carry]"=r"(carry)
       : [z]"r"(z), [x]"r"(x), [y]"rm"(y), "0"(carry)
-      : "cc", "%rax", "%rdx");
+      : "cc", "%eax", "%edx");
    return carry;
    }
 
@@ -2924,7 +2959,7 @@ inline word word8_madd3(word z[8], const word x[8], word y, word carry)
       DO_8_TIMES(MULADD_OP, "")
       : [carry]"=r"(carry)
       : [z]"r"(z), [x]"r"(x), [y]"rm"(y), "0"(carry)
-      : "cc", "%rax", "%rdx");
+      : "cc", "%eax", "%edx");
    return carry;
    }
 
@@ -2934,11 +2969,11 @@ inline word word8_madd3(word z[8], const word x[8], word y, word carry)
 inline void word3_muladd(word* w2, word* w1, word* w0, word x, word y)
    {
    asm(
-      ASM("mulq %[y]")
+      ASM("mull %[y]")
 
-      ASM("addq %[x],%[w0]")
-      ASM("adcq %[y],%[w1]")
-      ASM("adcq $0,%[w2]")
+      ASM("addl %[x],%[w0]")
+      ASM("adcl %[y],%[w1]")
+      ASM("adcl $0,%[w2]")
 
       : [w0]"=r"(*w0), [w1]"=r"(*w1), [w2]"=r"(*w2)
       : [x]"a"(x), [y]"d"(y), "0"(*w0), "1"(*w1), "2"(*w2)
@@ -2951,33 +2986,25 @@ inline void word3_muladd(word* w2, word* w1, word* w0, word x, word y)
 inline void word3_muladd_2(word* w2, word* w1, word* w0, word x, word y)
    {
    asm(
-      ASM("mulq %[y]")
+      ASM("mull %[y]")
 
-      ASM("addq %[x],%[w0]")
-      ASM("adcq %[y],%[w1]")
-      ASM("adcq $0,%[w2]")
+      ASM("addl %[x],%[w0]")
+      ASM("adcl %[y],%[w1]")
+      ASM("adcl $0,%[w2]")
 
-      ASM("addq %[x],%[w0]")
-      ASM("adcq %[y],%[w1]")
-      ASM("adcq $0,%[w2]")
+      ASM("addl %[x],%[w0]")
+      ASM("adcl %[y],%[w1]")
+      ASM("adcl $0,%[w2]")
 
       : [w0]"=r"(*w0), [w1]"=r"(*w1), [w2]"=r"(*w2)
       : [x]"a"(x), [y]"d"(y), "0"(*w0), "1"(*w1), "2"(*w2)
       : "cc");
    }
 
-
-#undef ASM
-#undef DO_8_TIMES
-#undef ADD_OR_SUBTRACT
-#undef ADDSUB2_OP
-#undef ADDSUB3_OP
-#undef LINMUL_OP
-#undef MULADD_OP
-
 }
 
 }
+
 /*
 * OctetString
 * (C) 1999-2007 Jack Lloyd
@@ -9910,239 +9937,6 @@ void IDEA::key_schedule(const byte key[], size_t)
    DK[2] = -EK[50];
    DK[1] = -EK[49];
    DK[0] = mul_inv(EK[48]);
-   }
-
-}
-/*
-* IDEA in SSE2
-* (C) 2009 Jack Lloyd
-*
-* Distributed under the terms of the Botan license
-*/
-
-#include <emmintrin.h>
-
-namespace Botan {
-
-namespace {
-
-inline __m128i mul(__m128i X, u16bit K_16)
-   {
-   const __m128i zeros = _mm_set1_epi16(0);
-   const __m128i ones = _mm_set1_epi16(1);
-
-   const __m128i K = _mm_set1_epi16(K_16);
-
-   const __m128i X_is_zero = _mm_cmpeq_epi16(X, zeros);
-   const __m128i K_is_zero = _mm_cmpeq_epi16(K, zeros);
-
-   const __m128i mul_lo = _mm_mullo_epi16(X, K);
-   const __m128i mul_hi = _mm_mulhi_epu16(X, K);
-
-   __m128i T = _mm_sub_epi16(mul_lo, mul_hi);
-
-   // Unsigned compare; cmp = 1 if mul_lo < mul_hi else 0
-   const __m128i subs = _mm_subs_epu16(mul_hi, mul_lo);
-   const __m128i cmp = _mm_min_epu8(
-     _mm_or_si128(subs, _mm_srli_epi16(subs, 8)), ones);
-
-   T = _mm_add_epi16(T, cmp);
-
-   /* Selection: if X[i] is zero then assign 1-K
-                 if K is zero then assign 1-X[i]
-
-      Could if() off value of K_16 for the second, but this gives a
-      constant time implementation which is a nice bonus.
-   */
-
-   T = _mm_or_si128(
-      _mm_andnot_si128(X_is_zero, T),
-      _mm_and_si128(_mm_sub_epi16(ones, K), X_is_zero));
-
-   T = _mm_or_si128(
-      _mm_andnot_si128(K_is_zero, T),
-      _mm_and_si128(_mm_sub_epi16(ones, X), K_is_zero));
-
-   return T;
-   }
-
-/*
-* 4x8 matrix transpose
-*
-* FIXME: why do I need the extra set of unpack_epi32 here? Inverse in
-* transpose_out doesn't need it. Something with the shuffle? Removing
-* that extra unpack could easily save 3-4 cycles per block, and would
-* also help a lot with register pressure on 32-bit x86
-*/
-void transpose_in(__m128i& B0, __m128i& B1, __m128i& B2, __m128i& B3)
-   {
-   __m128i T0 = _mm_unpackhi_epi32(B0, B1);
-   __m128i T1 = _mm_unpacklo_epi32(B0, B1);
-   __m128i T2 = _mm_unpackhi_epi32(B2, B3);
-   __m128i T3 = _mm_unpacklo_epi32(B2, B3);
-
-   __m128i T4 = _mm_unpacklo_epi32(T0, T1);
-   __m128i T5 = _mm_unpackhi_epi32(T0, T1);
-   __m128i T6 = _mm_unpacklo_epi32(T2, T3);
-   __m128i T7 = _mm_unpackhi_epi32(T2, T3);
-
-   T0 = _mm_shufflehi_epi16(T4, _MM_SHUFFLE(1, 3, 0, 2));
-   T1 = _mm_shufflehi_epi16(T5, _MM_SHUFFLE(1, 3, 0, 2));
-   T2 = _mm_shufflehi_epi16(T6, _MM_SHUFFLE(1, 3, 0, 2));
-   T3 = _mm_shufflehi_epi16(T7, _MM_SHUFFLE(1, 3, 0, 2));
-
-   T0 = _mm_shufflelo_epi16(T0, _MM_SHUFFLE(1, 3, 0, 2));
-   T1 = _mm_shufflelo_epi16(T1, _MM_SHUFFLE(1, 3, 0, 2));
-   T2 = _mm_shufflelo_epi16(T2, _MM_SHUFFLE(1, 3, 0, 2));
-   T3 = _mm_shufflelo_epi16(T3, _MM_SHUFFLE(1, 3, 0, 2));
-
-   T0 = _mm_shuffle_epi32(T0, _MM_SHUFFLE(3, 1, 2, 0));
-   T1 = _mm_shuffle_epi32(T1, _MM_SHUFFLE(3, 1, 2, 0));
-   T2 = _mm_shuffle_epi32(T2, _MM_SHUFFLE(3, 1, 2, 0));
-   T3 = _mm_shuffle_epi32(T3, _MM_SHUFFLE(3, 1, 2, 0));
-
-   B0 = _mm_unpacklo_epi64(T0, T2);
-   B1 = _mm_unpackhi_epi64(T0, T2);
-   B2 = _mm_unpacklo_epi64(T1, T3);
-   B3 = _mm_unpackhi_epi64(T1, T3);
-   }
-
-/*
-* 4x8 matrix transpose (reverse)
-*/
-void transpose_out(__m128i& B0, __m128i& B1, __m128i& B2, __m128i& B3)
-   {
-   __m128i T0 = _mm_unpacklo_epi64(B0, B1);
-   __m128i T1 = _mm_unpacklo_epi64(B2, B3);
-   __m128i T2 = _mm_unpackhi_epi64(B0, B1);
-   __m128i T3 = _mm_unpackhi_epi64(B2, B3);
-
-   T0 = _mm_shuffle_epi32(T0, _MM_SHUFFLE(3, 1, 2, 0));
-   T1 = _mm_shuffle_epi32(T1, _MM_SHUFFLE(3, 1, 2, 0));
-   T2 = _mm_shuffle_epi32(T2, _MM_SHUFFLE(3, 1, 2, 0));
-   T3 = _mm_shuffle_epi32(T3, _MM_SHUFFLE(3, 1, 2, 0));
-
-   T0 = _mm_shufflehi_epi16(T0, _MM_SHUFFLE(3, 1, 2, 0));
-   T1 = _mm_shufflehi_epi16(T1, _MM_SHUFFLE(3, 1, 2, 0));
-   T2 = _mm_shufflehi_epi16(T2, _MM_SHUFFLE(3, 1, 2, 0));
-   T3 = _mm_shufflehi_epi16(T3, _MM_SHUFFLE(3, 1, 2, 0));
-
-   T0 = _mm_shufflelo_epi16(T0, _MM_SHUFFLE(3, 1, 2, 0));
-   T1 = _mm_shufflelo_epi16(T1, _MM_SHUFFLE(3, 1, 2, 0));
-   T2 = _mm_shufflelo_epi16(T2, _MM_SHUFFLE(3, 1, 2, 0));
-   T3 = _mm_shufflelo_epi16(T3, _MM_SHUFFLE(3, 1, 2, 0));
-
-   B0 = _mm_unpacklo_epi32(T0, T1);
-   B1 = _mm_unpackhi_epi32(T0, T1);
-   B2 = _mm_unpacklo_epi32(T2, T3);
-   B3 = _mm_unpackhi_epi32(T2, T3);
-   }
-
-/*
-* IDEA encryption/decryption in SSE2
-*/
-void idea_op_8(const byte in[64], byte out[64], const u16bit EK[52])
-   {
-   const __m128i* in_mm = reinterpret_cast<const __m128i*>(in);
-
-   __m128i B0 = _mm_loadu_si128(in_mm + 0);
-   __m128i B1 = _mm_loadu_si128(in_mm + 1);
-   __m128i B2 = _mm_loadu_si128(in_mm + 2);
-   __m128i B3 = _mm_loadu_si128(in_mm + 3);
-
-   transpose_in(B0, B1, B2, B3);
-
-   // byte swap
-   B0 = _mm_or_si128(_mm_slli_epi16(B0, 8), _mm_srli_epi16(B0, 8));
-   B1 = _mm_or_si128(_mm_slli_epi16(B1, 8), _mm_srli_epi16(B1, 8));
-   B2 = _mm_or_si128(_mm_slli_epi16(B2, 8), _mm_srli_epi16(B2, 8));
-   B3 = _mm_or_si128(_mm_slli_epi16(B3, 8), _mm_srli_epi16(B3, 8));
-
-   for(size_t i = 0; i != 8; ++i)
-      {
-      B0 = mul(B0, EK[6*i+0]);
-      B1 = _mm_add_epi16(B1, _mm_set1_epi16(EK[6*i+1]));
-      B2 = _mm_add_epi16(B2, _mm_set1_epi16(EK[6*i+2]));
-      B3 = mul(B3, EK[6*i+3]);
-
-      __m128i T0 = B2;
-
-      B2 = _mm_xor_si128(B2, B0);
-      B2 = mul(B2, EK[6*i+4]);
-
-      __m128i T1 = B1;
-
-      B1 = _mm_xor_si128(B1, B3);
-      B1 = _mm_add_epi16(B1, B2);
-      B1 = mul(B1, EK[6*i+5]);
-
-      B2 = _mm_add_epi16(B2, B1);
-
-      B0 = _mm_xor_si128(B0, B1);
-      B1 = _mm_xor_si128(B1, T0);
-      B3 = _mm_xor_si128(B3, B2);
-      B2 = _mm_xor_si128(B2, T1);
-      }
-
-   B0 = mul(B0, EK[48]);
-   B1 = _mm_add_epi16(B1, _mm_set1_epi16(EK[50]));
-   B2 = _mm_add_epi16(B2, _mm_set1_epi16(EK[49]));
-   B3 = mul(B3, EK[51]);
-
-   // byte swap
-   B0 = _mm_or_si128(_mm_slli_epi16(B0, 8), _mm_srli_epi16(B0, 8));
-   B1 = _mm_or_si128(_mm_slli_epi16(B1, 8), _mm_srli_epi16(B1, 8));
-   B2 = _mm_or_si128(_mm_slli_epi16(B2, 8), _mm_srli_epi16(B2, 8));
-   B3 = _mm_or_si128(_mm_slli_epi16(B3, 8), _mm_srli_epi16(B3, 8));
-
-   transpose_out(B0, B2, B1, B3);
-
-   __m128i* out_mm = reinterpret_cast<__m128i*>(out);
-
-   _mm_storeu_si128(out_mm + 0, B0);
-   _mm_storeu_si128(out_mm + 1, B2);
-   _mm_storeu_si128(out_mm + 2, B1);
-   _mm_storeu_si128(out_mm + 3, B3);
-   }
-
-}
-
-/*
-* IDEA Encryption
-*/
-void IDEA_SSE2::encrypt_n(const byte in[], byte out[], size_t blocks) const
-   {
-   const u16bit* KS = &this->get_EK()[0];
-
-   while(blocks >= 8)
-      {
-      idea_op_8(in, out, KS);
-      in += 8 * BLOCK_SIZE;
-      out += 8 * BLOCK_SIZE;
-      blocks -= 8;
-      }
-
-   if(blocks)
-     IDEA::encrypt_n(in, out, blocks);
-   }
-
-/*
-* IDEA Decryption
-*/
-void IDEA_SSE2::decrypt_n(const byte in[], byte out[], size_t blocks) const
-   {
-   const u16bit* KS = &this->get_DK()[0];
-
-   while(blocks >= 8)
-      {
-      idea_op_8(in, out, KS);
-      in += 8 * BLOCK_SIZE;
-      out += 8 * BLOCK_SIZE;
-      blocks -= 8;
-      }
-
-   if(blocks)
-     IDEA::decrypt_n(in, out, blocks);
    }
 
 }
@@ -21902,64 +21696,6 @@ void High_Resolution_Timestamp::poll(Entropy_Accumulator& accum)
 
 }
 /*
-* Entropy Source Using Intel's rdrand instruction
-* (C) 2012 Jack Lloyd
-*
-* Distributed under the terms of the Botan license
-*/
-
-
-#if !defined(BOTAN_USE_GCC_INLINE_ASM)
-  #include <immintrin.h>
-#endif
-
-namespace Botan {
-
-/*
-* Get the timestamp
-*/
-void Intel_Rdrand::poll(Entropy_Accumulator& accum)
-   {
-   if(!CPUID::has_rdrand())
-      return;
-
-   /*
-   * Put an upper bound on the total entropy we're willing to claim
-   * for any one polling of rdrand to prevent it from swamping our
-   * poll. Internally, the rdrand system is a DRGB that reseeds at a
-   * somewhat unpredictable rate (the current conditions are
-   * documented, but that might not be true for different
-   * implementations, eg on Haswell or a future AMD chip, so I don't
-   * want to assume). This limit ensures we're going to poll at least
-   * one other source so we have some diversity in our inputs.
-   */
-
-   const size_t POLL_UPPER_BOUND = 96;
-   const size_t RDRAND_POLLS = 32;
-   const double ENTROPY_PER_POLL =
-      static_cast<double>(POLL_UPPER_BOUND) / (RDRAND_POLLS * 4);
-
-   for(size_t i = 0; i != RDRAND_POLLS; ++i)
-      {
-      unsigned int r = 0;
-
-#if BOTAN_USE_GCC_INLINE_ASM
-      int cf = 0;
-
-      // Encoding of rdrand %eax
-      asm(".byte 0x0F, 0xC7, 0xF0; adcl $0,%1" :
-          "=a" (r), "=r" (cf) : "0" (r), "1" (cf) : "cc");
-#else
-      int cf = _rdrand32_step(&r);
-#endif
-
-      if(cf == 1)
-         accum.add(r, ENTROPY_PER_POLL);
-      }
-   }
-
-}
-/*
 * Win32 EntropySource
 * (C) 1999-2009 Jack Lloyd
 *
@@ -27660,339 +27396,6 @@ void SHA_160::clear()
    digest[3] = 0x10325476;
    digest[4] = 0xC3D2E1F0;
    }
-
-}
-/*
-* SHA-1 using SSE2
-* (C) 2009-2011 Jack Lloyd
-*
-* Distributed under the terms of the Botan license
-*
-* Based on public domain code by Dean Gaudet
-*    (http://arctic.org/~dean/crypto/sha1.html)
-*/
-
-#include <emmintrin.h>
-
-namespace Botan {
-
-namespace SHA1_SSE2_F {
-
-namespace {
-
-/*
-* First 16 bytes just need byte swapping. Preparing just means
-* adding in the round constants.
-*/
-
-#define prep00_15(P, W)                                      \
-   do {                                                      \
-      W = _mm_shufflehi_epi16(W, _MM_SHUFFLE(2, 3, 0, 1));   \
-      W = _mm_shufflelo_epi16(W, _MM_SHUFFLE(2, 3, 0, 1));   \
-      W = _mm_or_si128(_mm_slli_epi16(W, 8),                 \
-                       _mm_srli_epi16(W, 8));                \
-      P.u128 = _mm_add_epi32(W, K00_19);                     \
-   } while(0)
-
-/*
-For each multiple of 4, t, we want to calculate this:
-
-W[t+0] = rol(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16], 1);
-W[t+1] = rol(W[t-2] ^ W[t-7] ^ W[t-13] ^ W[t-15], 1);
-W[t+2] = rol(W[t-1] ^ W[t-6] ^ W[t-12] ^ W[t-14], 1);
-W[t+3] = rol(W[t]   ^ W[t-5] ^ W[t-11] ^ W[t-13], 1);
-
-we'll actually calculate this:
-
-W[t+0] = rol(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16], 1);
-W[t+1] = rol(W[t-2] ^ W[t-7] ^ W[t-13] ^ W[t-15], 1);
-W[t+2] = rol(W[t-1] ^ W[t-6] ^ W[t-12] ^ W[t-14], 1);
-W[t+3] = rol(  0    ^ W[t-5] ^ W[t-11] ^ W[t-13], 1);
-W[t+3] ^= rol(W[t+0], 1);
-
-the parameters are:
-
-W0 = &W[t-16];
-W1 = &W[t-12];
-W2 = &W[t- 8];
-W3 = &W[t- 4];
-
-and on output:
-prepared = W0 + K
-W0 = W[t]..W[t+3]
-*/
-
-/* note that there is a step here where i want to do a rol by 1, which
-* normally would look like this:
-*
-* r1 = psrld r0,$31
-* r0 = pslld r0,$1
-* r0 = por r0,r1
-*
-* but instead i do this:
-*
-* r1 = pcmpltd r0,zero
-* r0 = paddd r0,r0
-* r0 = psub r0,r1
-*
-* because pcmpltd and paddd are availabe in both MMX units on
-* efficeon, pentium-m, and opteron but shifts are available in
-* only one unit.
-*/
-#define prep(prep, XW0, XW1, XW2, XW3, K)                               \
-   do {                                                                 \
-      __m128i r0, r1, r2, r3;                                           \
-                                                                        \
-      /* load W[t-4] 16-byte aligned, and shift */                      \
-      r3 = _mm_srli_si128((XW3), 4);                                    \
-      r0 = (XW0);                                                       \
-      /* get high 64-bits of XW0 into low 64-bits */                    \
-      r1 = _mm_shuffle_epi32((XW0), _MM_SHUFFLE(1,0,3,2));              \
-      /* load high 64-bits of r1 */                                     \
-      r1 = _mm_unpacklo_epi64(r1, (XW1));                               \
-      r2 = (XW2);                                                       \
-                                                                        \
-      r0 = _mm_xor_si128(r1, r0);                                       \
-      r2 = _mm_xor_si128(r3, r2);                                       \
-      r0 = _mm_xor_si128(r2, r0);                                       \
-      /* unrotated W[t]..W[t+2] in r0 ... still need W[t+3] */          \
-                                                                        \
-      r2 = _mm_slli_si128(r0, 12);                                      \
-      r1 = _mm_cmplt_epi32(r0, _mm_setzero_si128());                    \
-      r0 = _mm_add_epi32(r0, r0);   /* shift left by 1 */               \
-      r0 = _mm_sub_epi32(r0, r1);   /* r0 has W[t]..W[t+2] */           \
-                                                                        \
-      r3 = _mm_srli_epi32(r2, 30);                                      \
-      r2 = _mm_slli_epi32(r2, 2);                                       \
-                                                                        \
-      r0 = _mm_xor_si128(r0, r3);                                       \
-      r0 = _mm_xor_si128(r0, r2);   /* r0 now has W[t+3] */             \
-                                                                        \
-      (XW0) = r0;                                                       \
-      (prep).u128 = _mm_add_epi32(r0, K);                               \
-   } while(0)
-
-/*
-* SHA-160 F1 Function
-*/
-inline void F1(u32bit A, u32bit& B, u32bit C, u32bit D, u32bit& E, u32bit msg)
-   {
-   E += (D ^ (B & (C ^ D))) + msg + rotate_left(A, 5);
-   B  = rotate_left(B, 30);
-   }
-
-/*
-* SHA-160 F2 Function
-*/
-inline void F2(u32bit A, u32bit& B, u32bit C, u32bit D, u32bit& E, u32bit msg)
-   {
-   E += (B ^ C ^ D) + msg + rotate_left(A, 5);
-   B  = rotate_left(B, 30);
-   }
-
-/*
-* SHA-160 F3 Function
-*/
-inline void F3(u32bit A, u32bit& B, u32bit C, u32bit D, u32bit& E, u32bit msg)
-   {
-   E += ((B & C) | ((B | C) & D)) + msg + rotate_left(A, 5);
-   B  = rotate_left(B, 30);
-   }
-
-/*
-* SHA-160 F4 Function
-*/
-inline void F4(u32bit A, u32bit& B, u32bit C, u32bit D, u32bit& E, u32bit msg)
-   {
-   E += (B ^ C ^ D) + msg + rotate_left(A, 5);
-   B  = rotate_left(B, 30);
-   }
-
-}
-
-}
-
-/*
-* SHA-160 Compression Function using SSE for message expansion
-*/
-void SHA_160_SSE2::compress_n(const byte input_bytes[], size_t blocks)
-   {
-   using namespace SHA1_SSE2_F;
-
-   const __m128i K00_19 = _mm_set1_epi32(0x5A827999);
-   const __m128i K20_39 = _mm_set1_epi32(0x6ED9EBA1);
-   const __m128i K40_59 = _mm_set1_epi32(0x8F1BBCDC);
-   const __m128i K60_79 = _mm_set1_epi32(0xCA62C1D6);
-
-   u32bit A = digest[0],
-          B = digest[1],
-          C = digest[2],
-          D = digest[3],
-          E = digest[4];
-
-   const __m128i* input = reinterpret_cast<const __m128i*>(input_bytes);
-
-   for(size_t i = 0; i != blocks; ++i)
-      {
-      union v4si {
-         u32bit u32[4];
-         __m128i u128;
-         };
-
-      v4si P0, P1, P2, P3;
-
-      __m128i W0 = _mm_loadu_si128(&input[0]);
-      prep00_15(P0, W0);
-
-      __m128i W1 = _mm_loadu_si128(&input[1]);
-      prep00_15(P1, W1);
-
-      __m128i W2 = _mm_loadu_si128(&input[2]);
-      prep00_15(P2, W2);
-
-      __m128i W3 = _mm_loadu_si128(&input[3]);
-      prep00_15(P3, W3);
-
-      /*
-      Using SSE4; slower on Core2 and Nehalem
-      #define GET_P_32(P, i) _mm_extract_epi32(P.u128, i)
-
-      Much slower on all tested platforms
-      #define GET_P_32(P,i) _mm_cvtsi128_si32(_mm_srli_si128(P.u128, i*4))
-      */
-
-#define GET_P_32(P, i) P.u32[i]
-
-      F1(A, B, C, D, E, GET_P_32(P0, 0));
-      F1(E, A, B, C, D, GET_P_32(P0, 1));
-      F1(D, E, A, B, C, GET_P_32(P0, 2));
-      F1(C, D, E, A, B, GET_P_32(P0, 3));
-      prep(P0, W0, W1, W2, W3, K00_19);
-
-      F1(B, C, D, E, A, GET_P_32(P1, 0));
-      F1(A, B, C, D, E, GET_P_32(P1, 1));
-      F1(E, A, B, C, D, GET_P_32(P1, 2));
-      F1(D, E, A, B, C, GET_P_32(P1, 3));
-      prep(P1, W1, W2, W3, W0, K20_39);
-
-      F1(C, D, E, A, B, GET_P_32(P2, 0));
-      F1(B, C, D, E, A, GET_P_32(P2, 1));
-      F1(A, B, C, D, E, GET_P_32(P2, 2));
-      F1(E, A, B, C, D, GET_P_32(P2, 3));
-      prep(P2, W2, W3, W0, W1, K20_39);
-
-      F1(D, E, A, B, C, GET_P_32(P3, 0));
-      F1(C, D, E, A, B, GET_P_32(P3, 1));
-      F1(B, C, D, E, A, GET_P_32(P3, 2));
-      F1(A, B, C, D, E, GET_P_32(P3, 3));
-      prep(P3, W3, W0, W1, W2, K20_39);
-
-      F1(E, A, B, C, D, GET_P_32(P0, 0));
-      F1(D, E, A, B, C, GET_P_32(P0, 1));
-      F1(C, D, E, A, B, GET_P_32(P0, 2));
-      F1(B, C, D, E, A, GET_P_32(P0, 3));
-      prep(P0, W0, W1, W2, W3, K20_39);
-
-      F2(A, B, C, D, E, GET_P_32(P1, 0));
-      F2(E, A, B, C, D, GET_P_32(P1, 1));
-      F2(D, E, A, B, C, GET_P_32(P1, 2));
-      F2(C, D, E, A, B, GET_P_32(P1, 3));
-      prep(P1, W1, W2, W3, W0, K20_39);
-
-      F2(B, C, D, E, A, GET_P_32(P2, 0));
-      F2(A, B, C, D, E, GET_P_32(P2, 1));
-      F2(E, A, B, C, D, GET_P_32(P2, 2));
-      F2(D, E, A, B, C, GET_P_32(P2, 3));
-      prep(P2, W2, W3, W0, W1, K40_59);
-
-      F2(C, D, E, A, B, GET_P_32(P3, 0));
-      F2(B, C, D, E, A, GET_P_32(P3, 1));
-      F2(A, B, C, D, E, GET_P_32(P3, 2));
-      F2(E, A, B, C, D, GET_P_32(P3, 3));
-      prep(P3, W3, W0, W1, W2, K40_59);
-
-      F2(D, E, A, B, C, GET_P_32(P0, 0));
-      F2(C, D, E, A, B, GET_P_32(P0, 1));
-      F2(B, C, D, E, A, GET_P_32(P0, 2));
-      F2(A, B, C, D, E, GET_P_32(P0, 3));
-      prep(P0, W0, W1, W2, W3, K40_59);
-
-      F2(E, A, B, C, D, GET_P_32(P1, 0));
-      F2(D, E, A, B, C, GET_P_32(P1, 1));
-      F2(C, D, E, A, B, GET_P_32(P1, 2));
-      F2(B, C, D, E, A, GET_P_32(P1, 3));
-      prep(P1, W1, W2, W3, W0, K40_59);
-
-      F3(A, B, C, D, E, GET_P_32(P2, 0));
-      F3(E, A, B, C, D, GET_P_32(P2, 1));
-      F3(D, E, A, B, C, GET_P_32(P2, 2));
-      F3(C, D, E, A, B, GET_P_32(P2, 3));
-      prep(P2, W2, W3, W0, W1, K40_59);
-
-      F3(B, C, D, E, A, GET_P_32(P3, 0));
-      F3(A, B, C, D, E, GET_P_32(P3, 1));
-      F3(E, A, B, C, D, GET_P_32(P3, 2));
-      F3(D, E, A, B, C, GET_P_32(P3, 3));
-      prep(P3, W3, W0, W1, W2, K60_79);
-
-      F3(C, D, E, A, B, GET_P_32(P0, 0));
-      F3(B, C, D, E, A, GET_P_32(P0, 1));
-      F3(A, B, C, D, E, GET_P_32(P0, 2));
-      F3(E, A, B, C, D, GET_P_32(P0, 3));
-      prep(P0, W0, W1, W2, W3, K60_79);
-
-      F3(D, E, A, B, C, GET_P_32(P1, 0));
-      F3(C, D, E, A, B, GET_P_32(P1, 1));
-      F3(B, C, D, E, A, GET_P_32(P1, 2));
-      F3(A, B, C, D, E, GET_P_32(P1, 3));
-      prep(P1, W1, W2, W3, W0, K60_79);
-
-      F3(E, A, B, C, D, GET_P_32(P2, 0));
-      F3(D, E, A, B, C, GET_P_32(P2, 1));
-      F3(C, D, E, A, B, GET_P_32(P2, 2));
-      F3(B, C, D, E, A, GET_P_32(P2, 3));
-      prep(P2, W2, W3, W0, W1, K60_79);
-
-      F4(A, B, C, D, E, GET_P_32(P3, 0));
-      F4(E, A, B, C, D, GET_P_32(P3, 1));
-      F4(D, E, A, B, C, GET_P_32(P3, 2));
-      F4(C, D, E, A, B, GET_P_32(P3, 3));
-      prep(P3, W3, W0, W1, W2, K60_79);
-
-      F4(B, C, D, E, A, GET_P_32(P0, 0));
-      F4(A, B, C, D, E, GET_P_32(P0, 1));
-      F4(E, A, B, C, D, GET_P_32(P0, 2));
-      F4(D, E, A, B, C, GET_P_32(P0, 3));
-
-      F4(C, D, E, A, B, GET_P_32(P1, 0));
-      F4(B, C, D, E, A, GET_P_32(P1, 1));
-      F4(A, B, C, D, E, GET_P_32(P1, 2));
-      F4(E, A, B, C, D, GET_P_32(P1, 3));
-
-      F4(D, E, A, B, C, GET_P_32(P2, 0));
-      F4(C, D, E, A, B, GET_P_32(P2, 1));
-      F4(B, C, D, E, A, GET_P_32(P2, 2));
-      F4(A, B, C, D, E, GET_P_32(P2, 3));
-
-      F4(E, A, B, C, D, GET_P_32(P3, 0));
-      F4(D, E, A, B, C, GET_P_32(P3, 1));
-      F4(C, D, E, A, B, GET_P_32(P3, 2));
-      F4(B, C, D, E, A, GET_P_32(P3, 3));
-
-      A = (digest[0] += A);
-      B = (digest[1] += B);
-      C = (digest[2] += C);
-      D = (digest[3] += D);
-      E = (digest[4] += E);
-
-      input += (hash_block_size() / 16);
-      }
-
-#undef GET_P_32
-   }
-
-#undef prep00_15
-#undef prep
 
 }
 /*

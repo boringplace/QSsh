@@ -19,12 +19,12 @@
 #include <utility>
 
 /*
-* This file was automatically generated Wed Sep 13 16:44:45 2017 UTC by
-* Евгений@war running 'C:\Users\sin\Work\botan\configure.py --gen-amalgamation'
+* This file was automatically generated Wed Sep 13 17:52:12 2017 UTC by
+* Евгений@war running 'C:\Users\sin\Work\botan\configure.py --gen-amalgamation --cpu=x86_32'
 *
 * Target
-*  - Compiler: g++ -m64 -O3 -finline-functions 
-*  - Arch: x86_64/x86_64
+*  - Compiler: g++ -O3 -finline-functions 
+*  - Arch: x86_32/x86_32
 *  - OS: windows
 */
 
@@ -47,7 +47,7 @@
 #define BOTAN_BLOCK_CIPHER_PAR_MULT 4
 
 /* BigInt toggles */
-#define BOTAN_MP_WORD_BITS 64
+#define BOTAN_MP_WORD_BITS 32
 #define BOTAN_KARAT_MUL_THRESHOLD 32
 #define BOTAN_KARAT_SQR_THRESHOLD 32
 
@@ -86,8 +86,7 @@
 //#define BOTAN_TARGET_OS_HAS_WIN32_GET_SYSTEMTIME
 //#define BOTAN_TARGET_OS_HAS_WIN32_VIRTUAL_LOCK
 
-//#define BOTAN_TARGET_ARCH_IS_X86_64
-#define BOTAN_TARGET_CPU_HAS_SSE2
+//#define BOTAN_TARGET_ARCH_IS_X86_32
 #define BOTAN_TARGET_CPU_IS_LITTLE_ENDIAN
 #define BOTAN_TARGET_CPU_IS_X86_FAMILY
 #define BOTAN_TARGET_UNALIGNED_MEMORY_ACCESS_OK 1
@@ -196,7 +195,6 @@
 #define BOTAN_HAS_ENGINE_SIMD
 //#define BOTAN_HAS_ENTROPY_SRC_CAPI
 #define BOTAN_HAS_ENTROPY_SRC_HIGH_RESOLUTION_TIMER
-#define BOTAN_HAS_ENTROPY_SRC_RDRAND
 //#define BOTAN_HAS_ENTROPY_SRC_WIN32
 #define BOTAN_HAS_FILTERS
 #define BOTAN_HAS_FPE_FE1
@@ -209,7 +207,6 @@
 #define BOTAN_HAS_HMAC
 #define BOTAN_HAS_HMAC_RNG
 #define BOTAN_HAS_IDEA
-#define BOTAN_HAS_IDEA_SSE2
 #define BOTAN_HAS_IF_PUBLIC_KEY_FAMILY
 #define BOTAN_HAS_KASUMI
 #define BOTAN_HAS_KDF1
@@ -267,11 +264,10 @@
 #define BOTAN_HAS_SERPENT
 #define BOTAN_HAS_SERPENT_SIMD
 #define BOTAN_HAS_SHA1
-#define BOTAN_HAS_SHA1_SSE2
 #define BOTAN_HAS_SHA2_32
 #define BOTAN_HAS_SHA2_64
 #define BOTAN_HAS_SIMD_32
-#define BOTAN_HAS_SIMD_SSE2
+#define BOTAN_HAS_SIMD_SCALAR
 #define BOTAN_HAS_SKEIN_512
 #define BOTAN_HAS_SKIPJACK
 #define BOTAN_HAS_SQUARE
@@ -12714,60 +12710,6 @@ class BOTAN_DLL X942_PRF : public KDF
 namespace Botan {
 
 /**
-* IDEA
-*/
-class BOTAN_DLL IDEA : public Block_Cipher_Fixed_Params<8, 16>
-   {
-   public:
-      void encrypt_n(const byte in[], byte out[], size_t blocks) const;
-      void decrypt_n(const byte in[], byte out[], size_t blocks) const;
-
-      void clear() { zeroise(EK); zeroise(DK); }
-      std::string name() const { return "IDEA"; }
-      BlockCipher* clone() const { return new IDEA; }
-
-      IDEA() : EK(52), DK(52) {}
-   protected:
-      /**
-      * @return const reference to encryption subkeys
-      */
-      const SecureVector<u16bit>& get_EK() const { return EK; }
-
-      /**
-      * @return const reference to decryption subkeys
-      */
-      const SecureVector<u16bit>& get_DK() const { return DK; }
-
-   private:
-      void key_schedule(const byte[], size_t);
-      SecureVector<u16bit> EK, DK;
-   };
-
-}
-
-
-namespace Botan {
-
-/**
-* IDEA in SSE2
-*/
-class BOTAN_DLL IDEA_SSE2 : public IDEA
-   {
-   public:
-      size_t parallelism() const { return 8; }
-
-      void encrypt_n(const byte in[], byte out[], size_t blocks) const;
-      void decrypt_n(const byte in[], byte out[], size_t blocks) const;
-
-      BlockCipher* clone() const { return new IDEA_SSE2; }
-   };
-
-}
-
-
-namespace Botan {
-
-/**
 * TEA
 */
 class BOTAN_DLL TEA : public Block_Cipher_Fixed_Params<8, 16>
@@ -14194,23 +14136,6 @@ class BOTAN_DLL Lion : public BlockCipher
 namespace Botan {
 
 /**
-* SHA-160 using SSE2 for the message expansion
-*/
-class BOTAN_DLL SHA_160_SSE2 : public SHA_160
-   {
-   public:
-      HashFunction* clone() const { return new SHA_160_SSE2; }
-      SHA_160_SSE2() : SHA_160(0) {} // no W needed
-   private:
-      void compress_n(const byte[], size_t blocks);
-   };
-
-}
-
-
-namespace Botan {
-
-/**
 * Skipjack, a NSA designed cipher used in Fortezza
 */
 class BOTAN_DLL Skipjack : public Block_Cipher_Fixed_Params<8, 10>
@@ -15427,6 +15352,41 @@ inline PK_Key_Agreement* get_pk_kas(const PK_Key_Agreement_Key& key,
    {
    return new PK_Key_Agreement(key, kdf);
    }
+
+}
+
+
+namespace Botan {
+
+/**
+* IDEA
+*/
+class BOTAN_DLL IDEA : public Block_Cipher_Fixed_Params<8, 16>
+   {
+   public:
+      void encrypt_n(const byte in[], byte out[], size_t blocks) const;
+      void decrypt_n(const byte in[], byte out[], size_t blocks) const;
+
+      void clear() { zeroise(EK); zeroise(DK); }
+      std::string name() const { return "IDEA"; }
+      BlockCipher* clone() const { return new IDEA; }
+
+      IDEA() : EK(52), DK(52) {}
+   protected:
+      /**
+      * @return const reference to encryption subkeys
+      */
+      const SecureVector<u16bit>& get_EK() const { return EK; }
+
+      /**
+      * @return const reference to decryption subkeys
+      */
+      const SecureVector<u16bit>& get_DK() const { return DK; }
+
+   private:
+      void key_schedule(const byte[], size_t);
+      SecureVector<u16bit> EK, DK;
+   };
 
 }
 
