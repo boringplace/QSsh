@@ -3642,7 +3642,7 @@ size_t static_provider_weight(const std::string& prov_name)
 #include <cstring>
 
 #include <sys/types.h>
-#include <sys/mman.h>
+//#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -22011,7 +22011,7 @@ SIMD_Engine::find_hash(const SCAN_Name& request,
 
 
 #include <sys/types.h>
-#include <sys/select.h>
+//#include <sys/select.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -22118,8 +22118,8 @@ void Device_EntropySource::poll(Entropy_Accumulator& accum)
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <sys/socket.h>
-#include <sys/un.h>
+//#include <sys/socket.h>
+//#include <sys/un.h>
 
 #ifndef PF_LOCAL
   #define PF_LOCAL PF_UNIX
@@ -22606,7 +22606,7 @@ void Intel_Rdrand::poll(Entropy_Accumulator& accum)
 
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/resource.h>
+//#include <sys/resource.h>
 #include <unistd.h>
 
 namespace Botan {
@@ -22721,7 +22721,7 @@ void Unix_EntropySource::poll(Entropy_Accumulator& accum)
 
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/wait.h>
+//#include <sys/wait.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
