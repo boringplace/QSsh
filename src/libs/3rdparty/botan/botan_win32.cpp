@@ -5,7 +5,7 @@
 * Distributed under the terms of the Botan license
 */
 
-#include "botan.h"
+#include "botan_win32.h"
 #include <map>
 #include <vector>
 #include <string>
