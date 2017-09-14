@@ -45,6 +45,8 @@ unix:*-g++* {
     QMAKE_CXXFLAGS_HIDESYMS -= -fvisibility-inlines-hidden # for ubuntu 7.04
 }
 
+HEADERS += botan.h
+
 win32:HEADERS += botan_win32.h
 win32:SOURCES += botan_win32.cpp
 
