@@ -48,6 +48,9 @@ private slots:
     void ready(int i);
     void disconnect(int i);
     void error(int i);
+    void start(int i);
+    void stop(int i);
+    void timeout(int i);
 
     void closeEvent(QCloseEvent *event);
 
@@ -61,6 +64,13 @@ private:
     QList<ConnectionPtr> m_connections;
     QStringList m_commands;
     QList<ProcessPtr> m_processes;
+    QList<QTimer*> m_timers;
+    QList<QLineEdit*> m_timer_intervals;
+    QList<QLCDNumber*> m_timer_lcd_numbers;
+    QList<int> m_timer_numbers;
+    QList<int> m_default_timeouts;
+    QList<bool> m_timer_state_on_start;
+    int m_default_timeout;
 
     QList<QGroupBox*> m_groupboxes;
     SshLogger *logger;
@@ -72,13 +82,14 @@ private:
     void loadConfiguration();
     void saveConfiguration();
     QHBoxLayout *updateUI();
+    void updateLCD(int i, int number);
 
     void readSettings(const QString &config);
     void writeSettings();
 
     bool reallyQuit();
 
-    QGroupBox *createGroup(QString host, int n, QSignalMapper* mapper);
+    QGroupBox *createGroup(QString host, int n, QSignalMapper* mapper, QSignalMapper* timerMapper, QSignalMapper* startMapper, QSignalMapper* stopMapper);
 };
 
 #endif // SSHRESTARTER_H
